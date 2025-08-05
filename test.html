@@ -674,7 +674,7 @@
                 if (planetKey === 'earth') {
                     earthOrbitGroup = orbitGroup;
                     earthTiltGroup = new THREE.Group();
-                    earthTiltGroup.rotation.z = earthAxialTilt;
+                    // Usunięto statyczne nachylenie - będzie dynamicznie obliczane
                     earthOrbitGroup.add(earthTiltGroup);
                     
                     const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
@@ -794,24 +794,173 @@
         }
 
         function createStars() {
-            const starGeometry = new THREE.BufferGeometry();
-            const starCount = 1000;
-            const positions = new Float32Array(starCount * 3);
+            const starDistance = 15000; // Znacznie dalej od układu słonecznego
             
-            for (let i = 0; i < starCount * 3; i += 3) {
-                positions[i] = (Math.random() - 0.5) * 400;
-                positions[i + 1] = (Math.random() - 0.5) * 400;
-                positions[i + 2] = (Math.random() - 0.5) * 400;
+            // Prawdziwe konstelacje z przybliżonymi pozycjami (rektascensja, deklinacja)
+            const constellations = {
+                // ZNAKI ZODIAKU
+                'Baran': [
+                    { ra: 2.12, dec: 23.5, mag: 2.0 }, // Hamal
+                    { ra: 2.07, dec: 20.8, mag: 2.6 }, // Sheratan
+                    { ra: 1.91, dec: 20.5, mag: 4.4 }  // Mesarthim
+                ],
+                'Byk': [
+                    { ra: 4.6, dec: 16.5, mag: 0.9 },   // Aldebaran
+                    { ra: 5.44, dec: 28.6, mag: 3.0 },  // Ain
+                    { ra: 3.41, dec: 24.1, mag: 1.7 }   // Alcyone (Plejady)
+                ],
+                'Bliźnięta': [
+                    { ra: 7.58, dec: 28.0, mag: 1.6 },  // Castor
+                    { ra: 7.76, dec: 28.0, mag: 1.1 }   // Pollux
+                ],
+                'Rak': [
+                    { ra: 8.78, dec: 18.2, mag: 4.3 },  // Acubens
+                    { ra: 8.44, dec: 21.5, mag: 3.9 }   // Al Tarf
+                ],
+                'Lew': [
+                    { ra: 10.14, dec: 23.4, mag: 1.4 }, // Regulus
+                    { ra: 11.82, dec: 14.6, mag: 2.0 }, // Denebola
+                    { ra: 10.33, dec: 16.8, mag: 3.4 }  // Algieba
+                ],
+                'Panna': [
+                    { ra: 13.42, dec: -11.2, mag: 1.0 }, // Spica
+                    { ra: 12.93, dec: 3.4, mag: 3.4 },   // Zavijava
+                    { ra: 14.85, dec: 1.9, mag: 2.8 }    // Vindemiatrix
+                ],
+                'Waga': [
+                    { ra: 14.85, dec: -16.0, mag: 2.8 }, // Zubeneschamali
+                    { ra: 15.28, dec: -9.4, mag: 2.6 }   // Zubenelgenubi
+                ],
+                'Skorpion': [
+                    { ra: 16.49, dec: -26.4, mag: 1.1 }, // Antares
+                    { ra: 17.56, dec: -37.1, mag: 1.6 }, // Shaula
+                    { ra: 16.84, dec: -34.3, mag: 2.3 }  // Sargas
+                ],
+                'Strzelec': [
+                    { ra: 19.04, dec: -29.9, mag: 1.8 }, // Kaus Australis
+                    { ra: 18.96, dec: -26.3, mag: 2.1 }, // Nunki
+                    { ra: 19.16, dec: -27.7, mag: 2.8 }  // Kaus Media
+                ],
+                'Koziorożec': [
+                    { ra: 20.29, dec: -12.5, mag: 3.6 }, // Algedi
+                    { ra: 21.37, dec: -16.1, mag: 2.9 }  // Deneb Algedi
+                ],
+                'Wodnik': [
+                    { ra: 22.10, dec: -0.3, mag: 2.9 },  // Sadalsuud
+                    { ra: 21.53, dec: -5.6, mag: 3.0 }   // Sadalmelik
+                ],
+                'Ryby': [
+                    { ra: 1.49, dec: 15.3, mag: 3.6 },   // Alrescha
+                    { ra: 23.67, dec: 5.6, mag: 4.5 }    // Fum al Samakah
+                ],
+                
+                // KONSTELACJE OKOŁOBIEGUNOWE
+                'Wielka Niedźwiedzica': [
+                    { ra: 11.06, dec: 61.8, mag: 1.8 }, // Dubhe
+                    { ra: 11.03, dec: 56.4, mag: 2.3 }, // Merak
+                    { ra: 12.26, dec: 57.0, mag: 2.3 }, // Phecda
+                    { ra: 12.26, dec: 57.0, mag: 2.3 }, // Megrez
+                    { ra: 12.90, dec: 55.9, mag: 1.8 }, // Alioth
+                    { ra: 13.42, dec: 49.3, mag: 2.2 }, // Mizar
+                    { ra: 13.79, dec: 49.3, mag: 1.9 }  // Alkaid
+                ],
+                'Mała Niedźwiedzica': [
+                    { ra: 2.53, dec: 89.3, mag: 2.0 },  // Polaris (Gwiazda Polarna)
+                    { ra: 15.35, dec: 71.8, mag: 4.4 }, // Yildun
+                    { ra: 16.29, dec: 75.8, mag: 4.2 }  // Pherkad
+                ],
+                'Kasjopeja': [
+                    { ra: 0.95, dec: 56.5, mag: 2.2 },  // Schedar
+                    { ra: 0.15, dec: 59.1, mag: 2.3 },  // Caph
+                    { ra: 1.43, dec: 60.2, mag: 2.5 },  // Gamma Cas
+                    { ra: 1.90, dec: 63.7, mag: 3.4 },  // Ruchbah
+                    { ra: 2.29, dec: 67.1, mag: 3.4 }   // Segin
+                ],
+                'Orion': [
+                    { ra: 5.92, dec: 7.4, mag: 0.1 },   // Rigel
+                    { ra: 5.59, dec: 7.4, mag: 0.4 },   // Betelgeuse
+                    { ra: 5.68, dec: -1.2, mag: 1.7 },  // Alnilam
+                    { ra: 5.60, dec: -1.9, mag: 1.8 },  // Alnitak
+                    { ra: 5.53, dec: -0.3, mag: 2.2 }   // Mintaka
+                ],
+                'Łabędź': [
+                    { ra: 20.37, dec: 45.3, mag: 1.3 }, // Deneb
+                    { ra: 19.51, dec: 27.9, mag: 2.2 }, // Sadr
+                    { ra: 19.75, dec: 33.9, mag: 3.9 }  // Gienah
+                ]
+            };
+            
+            // Usuń stare gwiazdy
+            scene.children = scene.children.filter(child => !child.userData.isStars);
+            
+            // Stwórz gwiazdy z konstelacji
+            Object.keys(constellations).forEach(constName => {
+                const stars = constellations[constName];
+                
+                stars.forEach(star => {
+                    // Konwersja współrzędnych równikowych na kartezjańskie
+                    const ra = star.ra * (Math.PI / 12); // Rektascensja (godziny -> radiany)
+                    const dec = star.dec * (Math.PI / 180); // Deklinacja (stopnie -> radiany)
+                    
+                    const x = starDistance * Math.cos(dec) * Math.cos(ra);
+                    const y = starDistance * Math.sin(dec);
+                    const z = starDistance * Math.cos(dec) * Math.sin(ra);
+                    
+                    // Rozmiar gwiazdy zależny od jasności (magnitude)
+                    let starSize = Math.max(0.5, 4.0 - star.mag);
+                    if (star.mag < 1.5) starSize *= 1.5; // Jaśniejsze gwiazdy większe
+                    
+                    const starGeometry = new THREE.SphereGeometry(starSize, 8, 8);
+                    const starMaterial = new THREE.MeshBasicMaterial({ 
+                        color: getStarColor(star.mag),
+                        emissive: getStarColor(star.mag),
+                        emissiveIntensity: 0.3
+                    });
+                    
+                    const starMesh = new THREE.Mesh(starGeometry, starMaterial);
+                    starMesh.position.set(x, y, z);
+                    starMesh.userData.isStars = true;
+                    starMesh.userData.constellation = constName;
+                    starMesh.userData.magnitude = star.mag;
+                    
+                    scene.add(starMesh);
+                });
+            });
+            
+            // Dodaj dodatkowe gwiazdy tła dla pełnego nieba
+            const backgroundStarGeometry = new THREE.BufferGeometry();
+            const backgroundStarCount = 2000;
+            const positions = new Float32Array(backgroundStarCount * 3);
+            
+            for (let i = 0; i < backgroundStarCount * 3; i += 3) {
+                // Równomierne rozmieszczenie na sferze
+                const u = Math.random();
+                const v = Math.random();
+                const theta = 2 * Math.PI * u;
+                const phi = Math.acos(2 * v - 1);
+                
+                positions[i] = starDistance * 0.9 * Math.sin(phi) * Math.cos(theta);
+                positions[i + 1] = starDistance * 0.9 * Math.cos(phi);
+                positions[i + 2] = starDistance * 0.9 * Math.sin(phi) * Math.sin(theta);
             }
             
-            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            const starMaterial = new THREE.PointsMaterial({ 
-                color: 0xffffff,
-                size: 1.5,
+            backgroundStarGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const backgroundStarMaterial = new THREE.PointsMaterial({ 
+                color: 0xaaaaff,
+                size: 1.0,
                 sizeAttenuation: false
             });
-            const stars = new THREE.Points(starGeometry, starMaterial);
-            scene.add(stars);
+            const backgroundStars = new THREE.Points(backgroundStarGeometry, backgroundStarMaterial);
+            backgroundStars.userData.isStars = true;
+            scene.add(backgroundStars);
+        }
+        
+        function getStarColor(magnitude) {
+            // Kolory gwiazd zależne od jasności
+            if (magnitude < 1.0) return 0xffffaa; // Bardzo jasne - białożółte
+            if (magnitude < 2.0) return 0xffffff; // Jasne - białe  
+            if (magnitude < 3.0) return 0xaaffff; // Średnie - białoniebieskie
+            return 0x8888ff; // Słabe - niebieskie
         }
 
         function loadTextureWithFallback(planet, planetInfo, urls, index = 0) {
@@ -885,6 +1034,12 @@
                     // Ustaw docelową pozycję Ziemi
                     targetEarthPosition.set(earthX, 0, earthZ);
                     earthOrbitGroup.position.copy(targetEarthPosition);
+                    
+                    // NAPRAWIONE nachylenie osi - zsynchronizowane z pozycją orbitalną
+                    // W czerwcu (dzień ~172) biegun północny nachylony toward słońca (lato północne)
+                    // W grudniu (dzień ~355/0) biegun północny nachylony away od słońca (zima północna)
+                    const axialTiltAngle = earthOrbitAngle + Math.PI; // +180° offset dla prawidłowej orientacji
+                    earthTiltGroup.rotation.z = earthAxialTilt * Math.cos(axialTiltAngle);
                     
                     const dayProgress = totalDays % 1;
                     earth.rotation.y = dayProgress * 2 * Math.PI;
@@ -1296,11 +1451,23 @@
                 `(${camPos.x.toFixed(0)}, ${camPos.y.toFixed(0)}, ${camPos.z.toFixed(0)})`;
         }
 
-        function getSeason(dayOfYear) {
-            if (dayOfYear >= 355 || dayOfYear < 79) return 'Zima';
-            if (dayOfYear >= 79 && dayOfYear < 172) return 'Wiosna';
-            if (dayOfYear >= 172 && dayOfYear < 266) return 'Lato';
-            return 'Jesień';
+        function getSeason(totalDays) {
+            // Oblicz pozycję orbitalną Ziemi
+            const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+            
+            // Przelicz kąt orbitalny na pory roku (dla półkuli północnej)
+            // 0° = przesilenie zimowe (21 grudnia)
+            // 90° = równonoc wiosenna (21 marca)  
+            // 180° = przesilenie letnie (21 czerwca)
+            // 270° = równonoc jesienna (21 września)
+            
+            let seasonAngle = (earthOrbitAngle + Math.PI) % (2 * Math.PI); // Normalizuj do 0-2π
+            let seasonDegrees = (seasonAngle * 180 / Math.PI) % 360;
+            
+            if (seasonDegrees >= 315 || seasonDegrees < 45) return 'Zima';      // Grudzień-Luty
+            if (seasonDegrees >= 45 && seasonDegrees < 135) return 'Wiosna';    // Marzec-Maj  
+            if (seasonDegrees >= 135 && seasonDegrees < 225) return 'Lato';     // Czerwiec-Sierpień
+            return 'Jesień';                                                     // Wrzesień-Listopad
         }
 
         function updateUIOnly(totalDays) {
@@ -1317,7 +1484,7 @@
             document.getElementById('illumination').textContent = phase.illumination + '%';
             document.getElementById('currentYear').textContent = currentYear;
             document.getElementById('dayOfYear').textContent = Math.floor(dayOfYear) + 1;
-            document.getElementById('season').textContent = getSeason(dayOfYear);
+            document.getElementById('season').textContent = getSeason(totalDays);
             document.getElementById('moonPhaseShort').textContent = phase.name;
             
             const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
@@ -1347,7 +1514,7 @@
                 const dayOfYear = totalDays % 365.25;
                 const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
                 const shortDate = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: '2-digit' });
-                const season = getSeason(dayOfYear);
+                const season = getSeason(totalDays);
                 toggleInfo.textContent = shortDate + ' • ' + season + ' • ' + phase.name;
             }
         }
