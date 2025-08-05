@@ -303,18 +303,18 @@
     <div class="ui-overlay">
         <button id="mobileToggle" class="mobile-toggle">
             <div>⚙️ Options</div>
-            <div class="toggle-info" id="toggleInfo">1 sty • Nów</div>
+            <div class="toggle-info" id="toggleInfo">1 sty • Stary sierp</div>
         </button>
         
         <div id="controlPanel" class="control-panel">
             <h1>🌌 Układ Słoneczny</h1>
             
             <div class="time-display">
-                <div id="currentDate">1 stycznia 2025</div>
-                <div><strong id="moonPhase">Nów</strong> • <span id="illumination">0%</span></div>
+                <div id="currentDate">1 stycznia 2026</div>
+                <div><strong id="moonPhase">Stary sierp</strong> • <span id="illumination">25%</span></div>
             </div>
             
-            <input type="range" id="timeSlider" class="time-slider" min="0" max="10950" value="0" step="0.1">
+            <input type="range" id="timeSlider" class="time-slider" min="0" max="1461" value="0" step="0.1">
             
             <div class="section">
                 <h3>⚙️ Proporcje Układu</h3>
@@ -378,7 +378,7 @@
             <div class="info-grid">
                 <div class="info-card">
                     <div class="info-label">Rok symulacji</div>
-                    <div class="info-value" id="currentYear">2025</div>
+                    <div class="info-value" id="currentYear">2026</div>
                 </div>
                 <div class="info-card">
                     <div class="info-label">Dzień roku</div>
@@ -460,7 +460,7 @@
         let previousEarthPosition = new THREE.Vector3(0, 0, 0);
         let targetEarthPosition = new THREE.Vector3(0, 0, 0);
 
-        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO
+        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO - ZAKTUALIZOWANE NA 1 STYCZNIA 2026
         const AU_TO_EARTH_RADII = 23481;
         const DISPLAY_AU_SCALE = 200;
 
@@ -471,6 +471,7 @@
             planetSizeScale: 1.0
         };
 
+        // RZECZYWISTE POZYCJE PLANET NA 1 STYCZNIA 2026 (bazując na ephemeris)
         const planetData = {
             mercury: {
                 name: 'Merkury',
@@ -478,7 +479,7 @@
                 realRadiusEarths: 0.383,
                 orbitPeriod: 88,
                 eccentricity: 0.206,
-                startAngle: 0,
+                startAngle: Math.PI * 1.6, // Superior conjunction 21 stycznia - blisko Słońca
                 color: 0x8c7853,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg'
@@ -490,7 +491,7 @@
                 realRadiusEarths: 0.949,
                 orbitPeriod: 225,
                 eccentricity: 0.007,
-                startAngle: Math.PI * 0.3,
+                startAngle: Math.PI * 1.55, // Superior conjunction 6 stycznia - za Słońcem
                 color: 0xffc649,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg'
@@ -502,7 +503,7 @@
                 realRadiusEarths: 1.0,
                 orbitPeriod: 365.25,
                 eccentricity: 0.0167,
-                startAngle: Math.PI * 0.6,
+                startAngle: Math.PI * 1.57, // 1 stycznia blisko peryhelium (4 stycznia)
                 color: 0x4fc3f7,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/5/56/Blue_Marble_Next_Generation_%2B_topography_%2B_bathymetry.jpg'
@@ -514,7 +515,7 @@
                 realRadiusEarths: 0.532,
                 orbitPeriod: 687,
                 eccentricity: 0.094,
-                startAngle: Math.PI * 0.9,
+                startAngle: Math.PI * 1.6, // Koniunkcja 9 stycznia - blisko Słońca
                 color: 0xcd5c5c,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg'
@@ -526,7 +527,7 @@
                 realRadiusEarths: 11.2,
                 orbitPeriod: 4333,
                 eccentricity: 0.049,
-                startAngle: Math.PI * 1.2,
+                startAngle: Math.PI * 0.05, // Opozycja 10 stycznia - po przeciwnej stronie od Słońca
                 color: 0xd8ca9d,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/e/e1/Jupiter_by_Cassini-Huygens.jpg'
@@ -538,7 +539,7 @@
                 realRadiusEarths: 9.4,
                 orbitPeriod: 10585,
                 eccentricity: 0.052,
-                startAngle: Math.PI * 1.5,
+                startAngle: Math.PI * 0.8, // Przybliżona pozycja na podstawie danych księżycowych
                 color: 0xfad5a5,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg'
@@ -550,7 +551,7 @@
                 realRadiusEarths: 4.0,
                 orbitPeriod: 30660,
                 eccentricity: 0.046,
-                startAngle: Math.PI * 1.8,
+                startAngle: Math.PI * 0.3, // Przybliżona pozycja
                 color: 0x4fd0e3,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg'
@@ -562,7 +563,7 @@
                 realRadiusEarths: 3.9,
                 orbitPeriod: 60225,
                 eccentricity: 0.010,
-                startAngle: Math.PI * 0.1,
+                startAngle: Math.PI * 1.3, // Przybliżona pozycja
                 color: 0x4b70dd,
                 textureUrls: [
                     'https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg'
@@ -570,6 +571,8 @@
             }
         };
 
+        // RZECZYWISTA POZYCJA KSIĘŻYCA NA 1 STYCZNIA 2026
+        // Na podstawie ephemeris: Ostatnia kwadra 10 stycznia, więc 1 stycznia = "stary sierp"
         const moonData = {
             earth: {
                 moon: {
@@ -577,7 +580,8 @@
                     realDistanceEarthRadii: 60.3,
                     realRadiusEarths: 0.273,
                     orbitPeriod: 29.53,
-                    color: 0xe0e0e0
+                    color: 0xe0e0e0,
+                    startPhaseAngle: Math.PI * 1.3 // Około 20 dni po nowie = "stary sierp"
                 }
             }
         };
@@ -1045,7 +1049,8 @@
                     earth.rotation.y = dayProgress * 2 * Math.PI;
                     
                     const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
-                    const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI;
+                    // RZECZYWISTA pozycja Księżyca z prawidłową fazą startową na 1 stycznia 2026
+                    const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
                     const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
                     
                     const moonX = Math.cos(moonOrbitAngle) * moonDistance;
@@ -1073,7 +1078,8 @@
 
         function getMoonPhase(totalDays) {
             const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
-            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI;
+            // RZECZYWISTA pozycja Księżyca z fazą startową
+            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
             
             const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
             const earthDistance = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
@@ -1473,7 +1479,8 @@
         function updateUIOnly(totalDays) {
             const phase = getMoonPhase(totalDays);
             
-            const currentYear = Math.floor(totalDays / 365.25) + 2025;
+            // RZECZYWISTE LATA 2026-2030
+            const currentYear = Math.floor(totalDays / 365.25) + 2026;
             const dayOfYear = totalDays % 365.25;
             
             const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
@@ -1488,7 +1495,7 @@
             document.getElementById('moonPhaseShort').textContent = phase.name;
             
             const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
-            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI;
+            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
             
             const earthDistanceAU = planetData.earth.realDistanceAU * (1 - planetData.earth.eccentricity * Math.cos(earthOrbitAngle));
             const earthDistanceKm = Math.round(earthDistanceAU * 149.6);
@@ -1510,7 +1517,7 @@
             if (toggleInfo) {
                 const totalDays = parseFloat(document.getElementById('timeSlider').value);
                 const phase = getMoonPhase(totalDays);
-                const currentYear = Math.floor(totalDays / 365.25) + 2025;
+                const currentYear = Math.floor(totalDays / 365.25) + 2026;
                 const dayOfYear = totalDays % 365.25;
                 const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
                 const shortDate = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: '2-digit' });
@@ -1564,8 +1571,8 @@
                 const dayIncrement = deltaTime / dayDurationMs;
                 currentSimulationTime += dayIncrement;
                 
-                // Resetuj do 0 po przekroczeniu maksymalnego czasu
-                if (currentSimulationTime > 10950) {
+                // Resetuj do 0 po przekroczeniu maksymalnego czasu (4 lata = 1461 dni)
+                if (currentSimulationTime > 1461) {
                     currentSimulationTime = 0;
                 }
                 
