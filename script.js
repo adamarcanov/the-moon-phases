@@ -298,7 +298,7 @@ function init() {
     
     loadEarthTexture(earthTextureUrls);
     
-    // Orbita Księżyca wokół Ziemi - PRZENIESIONE Z addContinents()
+    // Orbita Księżyca wokół Ziemi
     moonOrbitGroup = new THREE.Group();
     moonOrbitGroup.position.set(0, 0, 0); // Centruj na Ziemi
     earthTiltGroup.add(moonOrbitGroup); // Księżyc podąża za nachyloną Ziemią
@@ -364,26 +364,26 @@ function createOrbitLines() {
     });
     
     // ORBITA KSIĘŻYCA (specjalna - nachylona) - MUSI ZGADZAĆ SIĘ Z updatePositions()
-    const moonOrbitPoints = [];
-    for (let i = 0; i <= 128; i++) {
-        const angle = (i / 128) * Math.PI * 2;
-        const distance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(angle));
+    // const moonOrbitPoints = [];
+    // for (let i = 0; i <= 128; i++) {
+    //     const angle = (i / 128) * Math.PI * 2;
+    //     const distance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(angle));
         
-        // Zastosuj nachylenie orbity IDENTYCZNIE jak w updatePositions()
-        const x = Math.cos(angle) * distance;
-        const y = Math.sin(angle) * distance * Math.sin(moonOrbitalTilt) * moonTiltMultiplier; // DODAJ moonTiltMultiplier!
-        const z = Math.sin(angle) * distance * Math.cos(moonOrbitalTilt);
+    //     // Zastosuj nachylenie orbity IDENTYCZNIE jak w updatePositions()
+    //     const x = Math.cos(angle) * distance;
+    //     const y = Math.sin(angle) * distance * Math.sin(moonOrbitalTilt) * moonTiltMultiplier; // DODAJ moonTiltMultiplier!
+    //     const z = Math.sin(angle) * distance * Math.cos(moonOrbitalTilt);
         
-        moonOrbitPoints.push(new THREE.Vector3(x, y, z));
-    }
-    const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
-    const moonOrbitMaterial = new THREE.LineBasicMaterial({ 
-        color: 0x666666,
-        transparent: true,
-        opacity: 0.5
-    });
-    const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
-    earthOrbitGroup.add(moonOrbitLine); // Orbita księżyca podąża za Ziemią (ale bez nachylenia)
+    //     moonOrbitPoints.push(new THREE.Vector3(x, y, z));
+    // }
+    // const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
+    // const moonOrbitMaterial = new THREE.LineBasicMaterial({ 
+    //     color: 0x666666,
+    //     transparent: true,
+    //     opacity: 0.5
+    // });
+    // const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
+    // earthOrbitGroup.add(moonOrbitLine); // Orbita księżyca podąża za Ziemią (ale bez nachylenia)
 }
 
 function createPlanets() {
