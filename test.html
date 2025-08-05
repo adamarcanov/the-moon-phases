@@ -1,0 +1,1481 @@
+<div style="font-size: 0.75em; color: #64b5f6; margin: 8px 0; opacity: 0.9;">
+                    ℹ️ ORBITY liczone od CENTRUM (fizycznie poprawne)<br>
+                    Merkury: ~730 j. od centrum = ~620 j. od powierzchni Słońca (6.7x promienia)
+                </div><!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Układ Słoneczny - Konfigurowalne Proporcje</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        #canvas3d {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            touch-action: none;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 100;
+            pointer-events: none;
+            max-width: 340px;
+        }
+
+        .mobile-toggle {
+            display: none;
+            background: rgba(0,0,0,0.9);
+            border: 2px solid rgba(100,181,246,0.6);
+            border-radius: 25px;
+            padding: 10px 16px;
+            color: white;
+            font-size: 0.85em;
+            cursor: pointer;
+            pointer-events: auto;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            text-align: center;
+            min-width: 140px;
+            font-weight: bold;
+        }
+
+        .mobile-toggle:hover {
+            background: rgba(0,0,0,0.95);
+            border-color: rgba(100,181,246,0.8);
+            transform: translateY(-1px);
+        }
+
+        .toggle-info {
+            font-size: 0.75em;
+            color: #64b5f6;
+            margin-top: 2px;
+        }
+
+        .control-panel {
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 18px;
+            pointer-events: auto;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            min-width: 300px;
+            transition: all 0.3s ease;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .control-panel.mobile-collapsed {
+            display: none;
+        }
+
+        h1 {
+            font-size: 1.4em;
+            margin: 0 0 5px 0;
+            color: #64b5f6;
+        }
+
+        .subtitle {
+            font-size: 0.85em;
+            margin: 0 0 15px 0;
+            opacity: 0.8;
+            line-height: 1.3;
+        }
+
+        .section {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .section h3 {
+            margin: 0 0 10px 0;
+            font-size: 1em;
+            color: #64b5f6;
+        }
+
+        .time-display {
+            text-align: center;
+            margin-bottom: 12px;
+            font-size: 1em;
+            font-weight: bold;
+            color: #ffffff;
+            background: rgba(100,181,246,0.2);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .slider-container {
+            margin: 8px 0;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+        }
+
+        .slider-value {
+            color: #64b5f6;
+            font-weight: bold;
+        }
+
+        .time-slider, .scale-slider {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        .time-slider::-webkit-slider-thumb,
+        .scale-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #64b5f6;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(100,181,246,0.4);
+        }
+
+        .time-slider::-moz-range-thumb,
+        .scale-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #64b5f6;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 6px;
+            margin: 12px 0;
+            flex-wrap: wrap;
+        }
+
+        .control-button {
+            background: #64b5f6;
+            color: white;
+            border: none;
+            padding: 8px 10px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            flex: 1;
+            min-width: 60px;
+        }
+
+        .control-button:hover {
+            background: #42a5f5;
+            transform: translateY(-1px);
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .preset-button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-size: 0.75em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .preset-button:hover {
+            background: #45a049;
+        }
+
+        .preset-button.active {
+            background: #ff9800;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .info-card {
+            background: rgba(255,255,255,0.08);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .info-label {
+            font-size: 0.75em;
+            opacity: 0.8;
+            margin-bottom: 3px;
+            line-height: 1.2;
+        }
+
+        .info-value {
+            font-size: 0.9em;
+            font-weight: bold;
+            color: #64b5f6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .ui-overlay {
+                top: 10px;
+                left: 10px;
+                max-width: calc(100vw - 20px);
+            }
+            
+            .mobile-toggle {
+                display: block !important;
+            }
+            
+            .control-panel {
+                padding: 15px;
+                margin-top: 10px;
+                min-width: auto;
+                width: 100%;
+                max-width: calc(100vw - 20px);
+                max-height: 70vh;
+            }
+            
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-toggle {
+                display: none !important;
+            }
+            
+            .control-panel {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ui-overlay">
+        <button id="mobileToggle" class="mobile-toggle">
+            <div>⚙️ Options</div>
+            <div class="toggle-info" id="toggleInfo">1 sty • Nów</div>
+        </button>
+        
+        <div id="controlPanel" class="control-panel">
+            <h1>🌌 Układ Słoneczny</h1>
+            
+            <div class="time-display">
+                <div id="currentDate">1 stycznia 2025</div>
+                <div><strong id="moonPhase">Nów</strong> • <span id="illumination">0%</span></div>
+            </div>
+            
+            <input type="range" id="timeSlider" class="time-slider" min="0" max="10950" value="0" step="0.1">
+            
+            <div class="section">
+                <h3>⚙️ Proporcje Układu</h3>
+                
+                <div class="preset-buttons">
+                    <button id="realisticPreset" class="preset-button active">🔬 Rzeczywiste</button>
+                    <button id="visibilityPreset" class="preset-button">👁️ Widoczne</button>
+                    <button id="educationalPreset" class="preset-button">📚 Edukacyjne</button>
+                    <button id="customPreset" class="preset-button">🎯 Własne</button>
+                </div>
+                
+                <div style="font-size: 0.75em; color: #64b5f6; margin: 8px 0; opacity: 0.9;">
+                    ℹ️ Rzeczywiste proporcje: 1 AU = 23,481 promieni Ziemi<br>
+                    Słońce = 109x Ziemia, Księżyc = 0.273x Ziemia
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Skala orbit planet:</span>
+                        <span class="slider-value" id="planetScaleValue">0.08x</span>
+                    </div>
+                    <input type="range" id="planetScaleSlider" class="scale-slider" min="0.001" max="2.0" value="0.08" step="0.001">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Skala orbit księżyców:</span>
+                        <span class="slider-value" id="moonScaleValue">0.5x</span>
+                    </div>
+                    <input type="range" id="moonScaleSlider" class="scale-slider" min="0.05" max="2.0" value="0.5" step="0.05">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Skala rozmiarów planet:</span>
+                        <span class="slider-value" id="sizeScaleValue">1.0x</span>
+                    </div>
+                    <input type="range" id="sizeScaleSlider" class="scale-slider" min="0.1" max="50" value="1" step="0.1">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>🎮 Animacja</h3>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Prędkość:</span>
+                        <span class="slider-value"><span id="speedDisplay">1.0x</span> (doba = <span id="dayDuration">3s</span>)</span>
+                    </div>
+                    <input type="range" id="speedSlider" class="scale-slider" min="0.1" max="30" value="1" step="0.1">
+                </div>
+                
+                <div class="button-row">
+                    <button id="playButton" class="control-button">▶ Play</button>
+                    <button id="resetButton" class="control-button">⟲ Reset</button>
+                </div>
+                
+                <div class="button-row">
+                    <button id="cameraToggleButton" class="control-button">🌌 Kosmos</button>
+                    <button id="resetCameraButton" class="control-button">📷 Reset</button>
+                    <button id="findMoonButton" class="control-button">🌙 Znajdź</button>
+                </div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-label">Rok symulacji</div>
+                    <div class="info-value" id="currentYear">2025</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Dzień roku</div>
+                    <div class="info-value" id="dayOfYear">1</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Pora roku</div>
+                    <div class="info-value" id="season">Zima</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Ziemia-Słońce</div>
+                    <div class="info-value" id="earthDistance">147 mln km</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Ziemia-Księżyc</div>
+                    <div class="info-value" id="moonDistance">384 tys km</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Faza Księżyca</div>
+                    <div class="info-value" id="moonPhaseShort">Nów</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Tryb kamery</div>
+                    <div class="info-value" id="cameraMode">Ziemia</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Skala orbit</div>
+                    <div class="info-value" id="scaleInfo">1.0x</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Widoczność</div>
+                    <div class="info-value" id="visibilityMode">Rzeczywiste</div>
+                </div>
+                <div class="info-card">
+                    <div class="info-label">Rozmiar Księżyca</div>
+                    <div class="info-value" id="moonVisibility">0.273x Ziemi</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas3d"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Globalne zmienne
+        let scene, camera, renderer;
+        let sun, earth, moon;
+        let planets = {};
+        let planetOrbitGroups = {};
+        let moonOrbitGroups = {};
+        let earthOrbitGroup, earthTiltGroup, moonOrbitGroup;
+        let sunLight;
+        let textureLoader;
+        let animationRunning = true;
+        let lastAnimationTime = 0;
+        let animationSpeed = 1;
+        let cameraMode = 'earth';
+
+        // Kontrola kamery
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let targetRotationX = 0, targetRotationY = 0;
+        let currentRotationX = 0, currentRotationY = 0;
+        let cameraDistance = 800; // Zwiększone bo Słońce ma 109 jednostek promienia
+        let initialPinchDistance = 0;
+        let initialCameraDistance = 0;
+
+        // Skale konfiguracyjne
+        let planetDistanceScale = 1.0; // Skala odległości planet od Słońca
+        let moonDistanceScale = 1.0;   // Skala odległości księżyców od planet
+        let planetSizeScale = 1.0;     // Skala rozmiarów planet
+        let currentPreset = 'realistic';
+
+        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO
+        const AU_TO_EARTH_RADII = 23481; // 1 AU = 23,481 promieni Ziemi (rzeczywista proporcja!)
+        const DISPLAY_AU_SCALE = 200;    // Skala wyświetlania (1 AU = 200 jednostek dla widoczności)
+
+        // Dane planet z rzeczywistymi odległościami, rozmiarami i parametrami orbitalnymi
+        const planetData = {
+            mercury: {
+                name: 'Merkury',
+                realDistanceAU: 0.387,       // Średnia odległość
+                realRadiusEarths: 0.383,     
+                orbitPeriod: 88,
+                eccentricity: 0.206,         // Rzeczywista ekscentryczność
+                startAngle: 0,               // Pozycja na 1 stycznia 2025
+                color: 0x8c7853,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg'
+                ]
+            },
+            venus: {
+                name: 'Wenus',
+                realDistanceAU: 0.723,
+                realRadiusEarths: 0.949,
+                orbitPeriod: 225,
+                eccentricity: 0.007,         // Najbardziej kołowa orbita
+                startAngle: Math.PI * 0.3,
+                color: 0xffc649,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg'
+                ]
+            },
+            earth: {
+                name: 'Ziemia',
+                realDistanceAU: 1.0,
+                realRadiusEarths: 1.0,
+                orbitPeriod: 365.25,         // Uwzględnij lata przestępne
+                eccentricity: 0.0167,        
+                startAngle: Math.PI * 0.6,
+                color: 0x4fc3f7,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/5/56/Blue_Marble_Next_Generation_%2B_topography_%2B_bathymetry.jpg'
+                ]
+            },
+            mars: {
+                name: 'Mars',
+                realDistanceAU: 1.524,
+                realRadiusEarths: 0.532,
+                orbitPeriod: 687,
+                eccentricity: 0.094,         // Eliptyczna orbita
+                startAngle: Math.PI * 0.9,
+                color: 0xcd5c5c,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg'
+                ]
+            },
+            jupiter: {
+                name: 'Jowisz',
+                realDistanceAU: 5.204,
+                realRadiusEarths: 11.2,
+                orbitPeriod: 4333,
+                eccentricity: 0.049,
+                startAngle: Math.PI * 1.2,
+                color: 0xd8ca9d,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/e/e1/Jupiter_by_Cassini-Huygens.jpg'
+                ]
+            },
+            saturn: {
+                name: 'Saturn',
+                realDistanceAU: 9.537,
+                realRadiusEarths: 9.4,
+                orbitPeriod: 10585,
+                eccentricity: 0.052,
+                startAngle: Math.PI * 1.5,
+                color: 0xfad5a5,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg'
+                ]
+            },
+            uranus: {
+                name: 'Uran',  
+                realDistanceAU: 19.19,
+                realRadiusEarths: 4.0,
+                orbitPeriod: 30660,
+                eccentricity: 0.046,
+                startAngle: Math.PI * 1.8,
+                color: 0x4fd0e3,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg'
+                ]
+            },
+            neptune: {
+                name: 'Neptun',
+                realDistanceAU: 30.07,
+                realRadiusEarths: 3.9,
+                orbitPeriod: 60225,
+                eccentricity: 0.010,         // Prawie kołowa
+                startAngle: Math.PI * 0.1,
+                color: 0x4b70dd,
+                textureUrls: [
+                    'https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg'
+                ]
+            }
+        };
+
+        // Dane księżyców - RZECZYWISTE ODLEGŁOŚCI W PROMIENIACH PLANET
+        const moonData = {
+            earth: {
+                moon: {
+                    name: 'Księżyc',
+                    realDistanceEarthRadii: 60.3,    // 384,400 km = 60.3 promieni Ziemi (od centrum do centrum)
+                    realRadiusEarths: 0.273,
+                    orbitPeriod: 29.53,
+                    color: 0xe0e0e0
+                }
+            }
+        };
+
+        // Stałe fizyczne - RZECZYWISTE BEZ KOMBINACJI
+        const earthRadius = 1; // Jednostka referencyjna
+        const sunRadius = 109;  // RZECZYWISTY rozmiar: 109x Ziemia - KONIEC KOMBINACJI
+        const earthAxialTilt = -23.5 * (Math.PI / 180);
+        const earthEccentricity = 0.0167;
+        const moonEccentricity = 0.055;
+        const moonOrbitalTilt = 5.1 * (Math.PI / 180);
+
+        // Presety konfiguracji - PROPORCJE Z UWZGLĘDNIENIEM POWIERZCHNI SŁOŃCA
+        const presets = {
+            realistic: {
+                planetDistanceScale: 0.08,   // RZECZYWISTE: Merkury ~83x dalej od powierzchni Słońca
+                moonDistanceScale: 0.5,      // Księżyc 30 jednostek od centrum Ziemi
+                planetSizeScale: 1.0,        // Rzeczywiste rozmiary
+                name: 'Rzeczywiste proporcje'
+            },
+            visibility: {
+                planetDistanceScale: 0.02,   // Zmniejszone dla widoczności
+                moonDistanceScale: 0.25,     
+                planetSizeScale: 8.0,        
+                name: 'Widoczne'
+            },
+            educational: {
+                planetDistanceScale: 0.01,   // Jeszcze mniejsze
+                moonDistanceScale: 0.15,     
+                planetSizeScale: 15.0,
+                name: 'Edukacyjne'
+            },
+            custom: {
+                planetDistanceScale: 0.08,
+                moonDistanceScale: 0.5,
+                planetSizeScale: 1.0,
+                name: 'Własne'
+            }
+        };
+
+        function init() {
+            // Scena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
+            
+            // Kamera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
+            camera.position.set(500, 200, 500); // Dalej z powodu RZECZYWISTEGO rozmiaru Słońca (109 jednostek)
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas3d'),
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            
+            textureLoader = new THREE.TextureLoader();
+            
+            // Światło otoczenia
+            const ambientLight = new THREE.AmbientLight(0x202040, 0.05);
+            scene.add(ambientLight);
+            
+            createSun();
+            createPlanets();
+            createStars();
+            setupEventListeners();
+            applyPreset('realistic'); // Rzeczywiste proporcje jak chciał użytkownik
+        }
+
+        function createSun() {
+            const sunGeometry = new THREE.SphereGeometry(sunRadius, 32, 32);
+            const sunMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xffeb3b,
+                emissive: 0xffaa00
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            sun.position.set(0, 0, 0);
+            scene.add(sun);
+            
+            // Efekt świecenia
+            const sunGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.5, 32, 32);
+            const sunGlowMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.3
+            });
+            const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
+            scene.add(sunGlow);
+            
+            // Oświetlenie
+            const sunPointLight = new THREE.PointLight(0xffffff, 3, 10000); // Zwiększony zasięg
+            sunPointLight.position.set(0, 0, 0);
+            sunPointLight.castShadow = true;
+            sunPointLight.shadow.camera.near = 10;
+            sunPointLight.shadow.camera.far = 500;
+            sunPointLight.shadow.mapSize.width = 2048;
+            sunPointLight.shadow.mapSize.height = 2048;
+            scene.add(sunPointLight);
+            
+            sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            sunLight.position.set(1, 0.5, 0.5);
+            sunLight.target.position.set(0, 0, 0);
+            sunLight.castShadow = true;
+            sunLight.shadow.camera.near = 10;
+            sunLight.shadow.camera.far = 1000;
+            sunLight.shadow.camera.left = -200;
+            sunLight.shadow.camera.right = 200;
+            sunLight.shadow.camera.top = 200;
+            sunLight.shadow.camera.bottom = -200;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
+            scene.add(sunLight.target);
+        }
+
+        function createPlanets() {
+            Object.keys(planetData).forEach(planetKey => {
+                const planetInfo = planetData[planetKey];
+                
+                // Grupa orbity planety
+                const orbitGroup = new THREE.Group();
+                scene.add(orbitGroup);
+                planetOrbitGroups[planetKey] = orbitGroup;
+                
+                if (planetKey === 'earth') {
+                    // Specjalne grupy dla Ziemi z nachyleniem osi
+                    earthOrbitGroup = orbitGroup;
+                    earthTiltGroup = new THREE.Group();
+                    earthTiltGroup.rotation.z = earthAxialTilt;
+                    earthOrbitGroup.add(earthTiltGroup);
+                    
+                    // Geometria i materiał Ziemi
+                    const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+                    const earthMaterial = new THREE.MeshLambertMaterial({ 
+                        color: planetInfo.color,
+                        emissive: 0x000022
+                    });
+                    
+                    earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                    earth.castShadow = true;
+                    earth.receiveShadow = true;
+                    earthTiltGroup.add(earth);
+                    
+                    // Ładowanie tekstury Ziemi
+                    if (planetInfo.textureUrls) {
+                        loadTextureWithFallback(earth, planetInfo, planetInfo.textureUrls);
+                    }
+                    
+                    // Grupa orbity Księżyca
+                    moonOrbitGroup = new THREE.Group();
+                    earthTiltGroup.add(moonOrbitGroup);
+                    
+                    // Księżyc
+                    const moonRadius = moonData.earth.moon.realRadiusEarths;
+                    const moonGeometry = new THREE.SphereGeometry(moonRadius, 32, 32);
+                    const moonMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0xf0f0f0,  // Jaśniejszy kolor
+                        emissive: 0x222222  // Lekkie świecenie
+                    });
+                    
+                    moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                    moon.castShadow = true;
+                    moon.receiveShadow = true;
+                    moonOrbitGroup.add(moon);
+                    
+                    planets[planetKey] = earth;
+                } else {
+                    // Inne planety
+                    const geometry = new THREE.SphereGeometry(1, 32, 32);
+                    const material = new THREE.MeshLambertMaterial({ 
+                        color: planetInfo.color,
+                        emissive: 0x111111
+                    });
+                    
+                    const planet = new THREE.Mesh(geometry, material);
+                    planet.castShadow = true;
+                    planet.receiveShadow = true;
+                    orbitGroup.add(planet);
+                    
+                    planets[planetKey] = planet;
+                    
+                    if (planetInfo.textureUrls) {
+                        loadTextureWithFallback(planet, planetInfo, planetInfo.textureUrls);
+                    }
+                }
+            });
+            
+            createOrbitLines();
+        }
+
+        function createOrbitLines() {
+            // Usuń stare linie orbit z sceny głównej
+            scene.children = scene.children.filter(child => !child.userData.orbitLine);
+            
+            // Usuń stare linie orbit Księżyca z grupy Ziemi
+            if (earthTiltGroup) {
+                earthTiltGroup.children = earthTiltGroup.children.filter(child => !child.userData.orbitLine);
+            }
+            
+            // Dodaj nowe linie orbit dla planet
+            Object.keys(planetData).forEach(planetKey => {
+                const planetInfo = planetData[planetKey];
+                const orbitRadius = calculatePlanetOrbitRadius(planetInfo);
+                
+                const orbitPoints = [];
+                for (let i = 0; i <= 128; i++) {
+                    const angle = (i / 128) * Math.PI * 2;
+                    const distance = orbitRadius * (1 - planetInfo.eccentricity * Math.cos(angle));
+                    orbitPoints.push(new THREE.Vector3(
+                        Math.cos(angle) * distance,
+                        0,
+                        Math.sin(angle) * distance
+                    ));
+                }
+                
+                const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
+                const orbitMaterial = new THREE.LineBasicMaterial({ 
+                    color: planetKey === 'earth' ? 0x888888 : 0x444444,
+                    transparent: true,
+                    opacity: planetKey === 'earth' ? 0.6 : 0.3
+                });
+                const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+                orbitLine.userData.orbitLine = true;
+                orbitLine.userData.planet = planetKey;
+                scene.add(orbitLine);
+            });
+            
+            // Dodaj orbitę Księżyca (względem Ziemi)
+            const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+            const moonOrbitPoints = [];
+            for (let i = 0; i <= 64; i++) {
+                const angle = (i / 64) * Math.PI * 2;
+                const distance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(angle));
+                
+                const x = Math.cos(angle) * distance;
+                const y = Math.sin(angle) * distance * Math.sin(moonOrbitalTilt) * 3;
+                const z = Math.sin(angle) * distance * Math.cos(moonOrbitalTilt);
+                
+                moonOrbitPoints.push(new THREE.Vector3(x, y, z));
+            }
+            
+            const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
+            const moonOrbitMaterial = new THREE.LineBasicMaterial({ 
+                color: 0xaaaaaa,
+                transparent: true,
+                opacity: 0.7
+            });
+            const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
+            moonOrbitLine.userData.orbitLine = true;
+            moonOrbitLine.userData.planet = 'moon';
+            
+            // Dodaj orbitę Księżyca do grupy Ziemi
+            if (earthTiltGroup) {
+                earthTiltGroup.add(moonOrbitLine);
+            }
+            
+            console.log(`🌙 Orbita Księżyca: promień ${moonOrbitRadius.toFixed(1)}`);
+        }
+
+        function createStars() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 1000;
+            const positions = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 400;
+                positions[i + 1] = (Math.random() - 0.5) * 400;
+                positions[i + 2] = (Math.random() - 0.5) * 400;
+            }
+            
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starMaterial = new THREE.PointsMaterial({ 
+                color: 0xffffff,
+                size: 1.5,
+                sizeAttenuation: false
+            });
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+
+        function loadTextureWithFallback(planet, planetInfo, urls, index = 0) {
+            if (!urls || index >= urls.length) {
+                console.log(`❌ Wszystkie tekstury ${planetInfo.name} nieudane - używam koloru`);
+                return;
+            }
+            
+            textureLoader.load(
+                urls[index],
+                function(texture) {
+                    console.log(`✅ Tekstura ${planetInfo.name} załadowana`);
+                    planet.material.map = texture;
+                    planet.material.color.setHex(0xffffff);
+                    planet.material.needsUpdate = true;
+                },
+                undefined,
+                function(error) {
+                    console.log(`❌ Błąd tekstury ${planetInfo.name}, próbuję następną...`);
+                    loadTextureWithFallback(planet, planetInfo, urls, index + 1);
+                }
+            );
+        }
+
+        // Funkcje kalkulacyjne z uwzględnieniem skal
+        function calculatePlanetOrbitRadius(planetInfo) {
+            // Zawsze rzeczywiste proporcje: 1 AU = 23,481 promieni Ziemi
+            return planetInfo.realDistanceAU * AU_TO_EARTH_RADII * earthRadius * planetDistanceScale;
+        }
+
+        function calculateMoonOrbitRadius(moonInfo, planetRadius) {
+            // Księżyc w promieniach planety macierzystej
+            return moonInfo.realDistanceEarthRadii * planetRadius * moonDistanceScale;
+        }
+
+        function calculatePlanetRadius(planetInfo) {
+            return planetInfo.realRadiusEarths * earthRadius * planetSizeScale;
+        }
+
+        function updatePlanetSizes() {
+            Object.keys(planetData).forEach(planetKey => {
+                const planetInfo = planetData[planetKey];
+                const planet = planets[planetKey];
+                if (planet) {
+                    const newRadius = calculatePlanetRadius(planetInfo);
+                    planet.scale.setScalar(newRadius);
+                }
+            });
+            
+            // Aktualizuj Księżyc - RZECZYWISTY rozmiar
+            if (moon) {
+                const moonRadius = moonData.earth.moon.realRadiusEarths * earthRadius * planetSizeScale;
+                moon.scale.setScalar(moonRadius);
+                console.log(`🌙 Księżyc: rzeczywisty rozmiar ${moonRadius.toFixed(3)}, pozycja:`, moon.position);
+            }
+        }
+
+        function updatePositions(totalDays) {
+            // Aktualizuj pozycje wszystkich planet
+            Object.keys(planetData).forEach(planetKey => {
+                const planetInfo = planetData[planetKey];
+                const orbitRadius = calculatePlanetOrbitRadius(planetInfo);
+                
+                if (planetKey === 'earth') {
+                    // Orbita Ziemi wokół Słońca
+                    const earthOrbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
+                    const earthDistance = orbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
+                    
+                    const earthX = Math.cos(earthOrbitAngle) * earthDistance;
+                    const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
+                    earthOrbitGroup.position.set(earthX, 0, earthZ);
+                    
+                    // Rotacja Ziemi
+                    const dayProgress = totalDays % 1;
+                    earth.rotation.y = dayProgress * 2 * Math.PI;
+                    
+                    // Pozycja Księżyca
+                    const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+                    const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI;
+                    const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
+                    
+                    const moonX = Math.cos(moonOrbitAngle) * moonDistance;
+                    const moonY = Math.sin(moonOrbitAngle) * moonDistance * Math.sin(moonOrbitalTilt) * 3;
+                    const moonZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
+                    
+                    moon.position.set(moonX, moonY, moonZ);
+                    moon.rotation.y = moonOrbitAngle; // Synchroniczna rotacja
+                    
+                    // Debug info dla Księżyca
+                    if (totalDays === 0) {
+                        console.log(`🌙 Księżyc - orbita: ${moonOrbitRadius.toFixed(1)}, pozycja: (${moonX.toFixed(1)}, ${moonY.toFixed(1)}, ${moonZ.toFixed(1)})`);
+                    }
+                } else {
+                    // Inne planety
+                    const orbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
+                    const distance = orbitRadius * (1 - 0.01 * Math.cos(orbitAngle));
+                    
+                    const x = Math.cos(orbitAngle) * distance;
+                    const z = Math.sin(orbitAngle) * distance;
+                    
+                    if (planets[planetKey]) {
+                        planets[planetKey].position.set(x, 0, z);
+                        
+                        // Rotacja planety
+                        const dayProgress = totalDays % 1;
+                        planets[planetKey].rotation.y = dayProgress * 2 * Math.PI;
+                    }
+                }
+            });
+        }
+
+        function getMoonPhase(totalDays) {
+            // Oblicz pozycje dla faz Księżyca
+            const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI;
+            
+            const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+            const earthDistance = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
+            const earthX = Math.cos(earthOrbitAngle) * earthDistance;
+            const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
+            
+            const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+            const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
+            const moonLocalX = Math.cos(moonOrbitAngle) * moonDistance;
+            const moonLocalZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
+            
+            const sunToEarth = { x: earthX, z: earthZ };
+            const earthToMoon = { x: moonLocalX, z: moonLocalZ };
+            
+            const dotProduct = sunToEarth.x * earthToMoon.x + sunToEarth.z * earthToMoon.z;
+            const sunEarthMag = Math.sqrt(sunToEarth.x * sunToEarth.x + sunToEarth.z * sunToEarth.z);
+            const earthMoonMag = Math.sqrt(earthToMoon.x * earthToMoon.x + earthToMoon.z * earthToMoon.z);
+            
+            const cosAngle = dotProduct / (sunEarthMag * earthMoonMag);
+            const phaseAngle = Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI);
+            
+            if (phaseAngle < 22.5 || phaseAngle >= 337.5) return { name: 'Pełnia', illumination: 100 };
+            if (phaseAngle < 67.5) return { name: 'Ubywający garb', illumination: 75 };
+            if (phaseAngle < 112.5) return { name: 'Ostatnia kwadra', illumination: 50 };
+            if (phaseAngle < 157.5) return { name: 'Stary sierp', illumination: 25 };
+            if (phaseAngle < 202.5) return { name: 'Nów', illumination: 0 };
+            if (phaseAngle < 247.5) return { name: 'Młody sierp', illumination: 25 };
+            if (phaseAngle < 292.5) return { name: 'Pierwsza kwadra', illumination: 50 };
+            return { name: 'Przybywający garb', illumination: 75 };
+        }
+
+        function applyPreset(presetName) {
+            const preset = presets[presetName];
+            if (!preset) return;
+            
+            currentPreset = presetName;
+            planetDistanceScale = preset.planetDistanceScale;
+            moonDistanceScale = preset.moonDistanceScale;
+            planetSizeScale = preset.planetSizeScale;
+            
+            // Aktualizuj slidery
+            document.getElementById('planetScaleSlider').value = planetDistanceScale;
+            document.getElementById('moonScaleSlider').value = moonDistanceScale;
+            document.getElementById('sizeScaleSlider').value = planetSizeScale;
+            
+            // Aktualizuj wartości
+            updateScaleDisplays();
+            updatePlanetSizes();
+            createOrbitLines();
+            
+            // Aktualizuj pozycje
+            const currentTime = parseFloat(document.getElementById('timeSlider').value);
+            updatePositions(currentTime);
+            updateUIOnly(currentTime);
+            
+            // Ustaw odpowiednią odległość kamery
+            if (cameraMode === 'space') {
+                // Dostosuj kamerę do skali orbit
+                const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+                cameraDistance = Math.max(200, earthOrbitRadius * 2);
+            } else {
+                cameraDistance = 25;
+            }
+            
+            // Aktualizuj przyciski preset
+            document.querySelectorAll('.preset-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(presetName + 'Preset').classList.add('active');
+        }
+
+        function updateScaleDisplays() {
+            document.getElementById('planetScaleValue').textContent = planetDistanceScale.toFixed(3) + 'x';
+            document.getElementById('moonScaleValue').textContent = moonDistanceScale.toFixed(1) + 'x';
+            document.getElementById('sizeScaleValue').textContent = planetSizeScale.toFixed(1) + 'x';
+            document.getElementById('speedDisplay').textContent = animationSpeed.toFixed(1) + 'x';
+            document.getElementById('dayDuration').textContent = (3 / animationSpeed).toFixed(1) + 's';
+            // Status rzeczywistych odległości
+            const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+            const distanceFromSurface = earthOrbitRadius - sunRadius;
+            document.getElementById('scaleInfo').textContent = `${planetDistanceScale.toFixed(2)}x (Ziemia: ${distanceFromSurface.toFixed(0)} j. od powierzchni)`;
+            document.getElementById('visibilityMode').textContent = presets[currentPreset].name;
+        }
+
+        function setupEventListeners() {
+            const canvas = document.getElementById('canvas3d');
+            
+            // Kontrola myszą
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('wheel', onMouseWheel);
+            
+            // Kontrola dotykiem
+            canvas.addEventListener('touchstart', onTouchStart);
+            canvas.addEventListener('touchmove', onTouchMove);
+            canvas.addEventListener('touchend', onTouchEnd);
+            
+            // Slidery
+            document.getElementById('timeSlider').addEventListener('input', function(e) {
+                const totalDays = parseFloat(e.target.value);
+                updatePositions(totalDays);
+                updateUIOnly(totalDays);
+            });
+            
+            document.getElementById('speedSlider').addEventListener('input', function(e) {
+                animationSpeed = parseFloat(e.target.value);
+                updateScaleDisplays();
+            });
+            
+            document.getElementById('planetScaleSlider').addEventListener('input', function(e) {
+                planetDistanceScale = parseFloat(e.target.value);
+                currentPreset = 'custom';
+                updateScaleDisplays();
+                updatePlanetSizes();
+                createOrbitLines();
+                const currentTime = parseFloat(document.getElementById('timeSlider').value);
+                updatePositions(currentTime);
+                updateUIOnly(currentTime); // To też zaktualizuje scaleInfo
+                document.querySelectorAll('.preset-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('customPreset').classList.add('active');
+            });
+            
+            document.getElementById('moonScaleSlider').addEventListener('input', function(e) {
+                moonDistanceScale = parseFloat(e.target.value);
+                currentPreset = 'custom';
+                updateScaleDisplays();
+                const currentTime = parseFloat(document.getElementById('timeSlider').value);
+                updatePositions(currentTime);
+                document.querySelectorAll('.preset-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('customPreset').classList.add('active');
+            });
+            
+            document.getElementById('sizeScaleSlider').addEventListener('input', function(e) {
+                planetSizeScale = parseFloat(e.target.value);
+                currentPreset = 'custom';
+                updateScaleDisplays();
+                updatePlanetSizes();
+                document.querySelectorAll('.preset-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('customPreset').classList.add('active');
+            });
+            
+            // Przyciski preset
+            document.getElementById('realisticPreset').addEventListener('click', () => applyPreset('realistic'));
+            document.getElementById('visibilityPreset').addEventListener('click', () => applyPreset('visibility'));
+            document.getElementById('educationalPreset').addEventListener('click', () => applyPreset('educational'));
+            document.getElementById('customPreset').addEventListener('click', () => applyPreset('custom'));
+            
+            // Przyciski sterowania
+            document.getElementById('playButton').addEventListener('click', toggleAnimation);
+            document.getElementById('resetButton').addEventListener('click', resetAnimation);
+            document.getElementById('resetCameraButton').addEventListener('click', resetCamera);
+            document.getElementById('cameraToggleButton').addEventListener('click', toggleCameraMode);
+            document.getElementById('findMoonButton').addEventListener('click', findMoon);
+            
+            // Mobile toggle
+            document.getElementById('mobileToggle').addEventListener('click', function() {
+                const controlPanel = document.getElementById('controlPanel');
+                const isCollapsed = controlPanel.classList.contains('mobile-collapsed');
+                if (isCollapsed) {
+                    controlPanel.classList.remove('mobile-collapsed');
+                    this.innerHTML = '<div>✕ Zamknij</div><div class="toggle-info" id="toggleInfo"></div>';
+                } else {
+                    controlPanel.classList.add('mobile-collapsed');
+                    this.innerHTML = '<div>⚙️ Options</div><div class="toggle-info" id="toggleInfo"></div>';
+                }
+                updateToggleInfo();
+            });
+            
+            // Responsywność
+            window.addEventListener('resize', onWindowResize);
+            
+            initializeMobileUI();
+        }
+
+        function initializeMobileUI() {
+            const controlPanel = document.getElementById('controlPanel');
+            const mobileToggle = document.getElementById('mobileToggle');
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                controlPanel.classList.add('mobile-collapsed');
+                mobileToggle.style.display = 'block';
+            } else {
+                controlPanel.classList.remove('mobile-collapsed');
+                mobileToggle.style.display = 'none';
+            }
+            updateToggleInfo();
+        }
+
+        // Kontrola kamery - podobnie jak w oryginalnym kodzie
+        function onMouseDown(event) {
+            isMouseDown = true;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        function onMouseMove(event) {
+            if (!isMouseDown) return;
+            
+            const deltaX = event.clientX - mouseX;
+            const deltaY = event.clientY - mouseY;
+            
+            targetRotationY += deltaX * 0.01;
+            targetRotationX += deltaY * 0.01;
+            targetRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetRotationX));
+            
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+        }
+
+        function onMouseUp() {
+            isMouseDown = false;
+        }
+
+        function onMouseWheel(event) {
+            cameraDistance += event.deltaY * 0.1;
+            if (cameraMode === 'earth') {
+                cameraDistance = Math.max(8, Math.min(100, cameraDistance));
+            } else {
+                // Dostosuj limity do skali orbit
+                const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+                const maxDistance = Math.max(1000, earthOrbitRadius * 5);
+                cameraDistance = Math.max(100, Math.min(maxDistance, cameraDistance));
+            }
+        }
+
+        function onTouchStart(event) {
+            if (event.touches.length === 1) {
+                touchStartX = event.touches[0].clientX;
+                touchStartY = event.touches[0].clientY;
+                isMouseDown = true;
+            } else if (event.touches.length === 2) {
+                initialPinchDistance = getPinchDistance(event.touches);
+                initialCameraDistance = cameraDistance;
+                isMouseDown = false;
+            }
+        }
+
+        function onTouchMove(event) {
+            event.preventDefault();
+            
+            if (event.touches.length === 1 && isMouseDown) {
+                const deltaX = event.touches[0].clientX - touchStartX;
+                const deltaY = event.touches[0].clientY - touchStartY;
+                
+                targetRotationY += deltaX * 0.01;
+                targetRotationX += deltaY * 0.01;
+                targetRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, targetRotationX));
+                
+                touchStartX = event.touches[0].clientX;
+                touchStartY = event.touches[0].clientY;
+            } else if (event.touches.length === 2) {
+                const currentPinchDistance = getPinchDistance(event.touches);
+                const pinchRatio = currentPinchDistance / initialPinchDistance;
+                cameraDistance = initialCameraDistance / pinchRatio;
+                
+                if (cameraMode === 'earth') {
+                    cameraDistance = Math.max(8, Math.min(100, cameraDistance));
+                } else {
+                    const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+                    const maxDistance = Math.max(1000, earthOrbitRadius * 5);
+                    cameraDistance = Math.max(100, Math.min(maxDistance, cameraDistance));
+                }
+            }
+        }
+
+        function onTouchEnd(event) {
+            if (event.touches.length === 0) {
+                isMouseDown = false;
+            }
+        }
+
+        function getPinchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        let touchStartX = 0, touchStartY = 0;
+
+        function updateCameraPosition() {
+            currentRotationX += (targetRotationX - currentRotationX) * 0.1;
+            currentRotationY += (targetRotationY - currentRotationY) * 0.1;
+            
+            if (cameraMode === 'earth') {
+                const earthPos = earthOrbitGroup.position;
+                
+                const x = earthPos.x + Math.cos(currentRotationX) * Math.sin(currentRotationY) * cameraDistance;
+                const y = earthPos.y + Math.sin(currentRotationX) * cameraDistance;
+                const z = earthPos.z + Math.cos(currentRotationX) * Math.cos(currentRotationY) * cameraDistance;
+                
+                camera.position.set(x, y, z);
+                camera.lookAt(earthPos.x, earthPos.y, earthPos.z);
+            } else {
+                const x = Math.cos(currentRotationX) * Math.sin(currentRotationY) * cameraDistance;
+                const y = Math.sin(currentRotationX) * cameraDistance;
+                const z = Math.cos(currentRotationX) * Math.cos(currentRotationY) * cameraDistance;
+                
+                camera.position.set(x, y, z);
+                camera.lookAt(0, 0, 0);
+            }
+        }
+
+        function resetCamera() {
+            targetRotationX = 0;
+            targetRotationY = 0;
+            if (cameraMode === 'earth') {
+                cameraDistance = 25;
+            } else {
+                const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+                cameraDistance = Math.max(200, earthOrbitRadius * 2);
+            }
+        }
+
+        function toggleCameraMode() {
+            if (cameraMode === 'earth') {
+                cameraMode = 'space';
+                const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+                cameraDistance = Math.max(200, earthOrbitRadius * 2);
+                targetRotationX = 0.3;
+                targetRotationY = 0;
+            } else {
+                cameraMode = 'earth';
+                cameraDistance = 25;
+                targetRotationX = 0;
+                targetRotationY = 0;
+            }
+            updateCameraModeUI();
+        }
+
+        function findMoon() {
+            // Przełącz na tryb Ziemi
+            cameraMode = 'earth';
+            
+            // Ustaw odpowiednią odległość do obserwacji Księżyca
+            const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+            cameraDistance = Math.max(15, moonOrbitRadius * 1.5);
+            
+            // Resetuj obrót kamery
+            targetRotationX = 0;
+            targetRotationY = 0;
+            
+            updateCameraModeUI();
+            
+            console.log(`🌙 Kamera ustawiona na Księżyc: odległość ${cameraDistance.toFixed(1)}, orbita Księżyca ${moonOrbitRadius.toFixed(1)}`);
+        }
+
+        function updateCameraModeUI() {
+            const button = document.getElementById('cameraToggleButton');
+            const modeDisplay = document.getElementById('cameraMode');
+            
+            if (button) {
+                button.innerHTML = cameraMode === 'earth' ? '🌌 Kosmos' : '🌍 Ziemia';
+            }
+            if (modeDisplay) {
+                modeDisplay.textContent = cameraMode === 'earth' ? 'Ziemia' : 'Kosmos';
+            }
+        }
+
+        function toggleAnimation() {
+            const playButton = document.getElementById('playButton');
+            
+            if (!animationRunning) {
+                animationRunning = true;
+                playButton.textContent = '⏸ Pauza';
+                lastAnimationTime = performance.now();
+            } else {
+                animationRunning = false;
+                playButton.textContent = '▶ Play';
+            }
+        }
+
+        function resetAnimation() {
+            animationRunning = false;
+            document.getElementById('playButton').textContent = '▶ Play';
+            document.getElementById('timeSlider').value = 0;
+            document.getElementById('speedSlider').value = 1;
+            animationSpeed = 1;
+            updatePositions(0);
+            updateUIOnly(0);
+            updateScaleDisplays();
+        }
+
+        function getSeason(dayOfYear) {
+            if (dayOfYear >= 355 || dayOfYear < 79) return 'Zima';
+            if (dayOfYear >= 79 && dayOfYear < 172) return 'Wiosna';
+            if (dayOfYear >= 172 && dayOfYear < 266) return 'Lato';
+            return 'Jesień';
+        }
+
+        function updateUIOnly(totalDays) {
+            const phase = getMoonPhase(totalDays);
+            
+            const currentYear = Math.floor(totalDays / 365.25) + 2025;
+            const dayOfYear = totalDays % 365.25;
+            
+            const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
+            const dateStr = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+            
+            document.getElementById('currentDate').textContent = dateStr;
+            document.getElementById('moonPhase').textContent = phase.name;
+            document.getElementById('illumination').textContent = phase.illumination + '%';
+            document.getElementById('currentYear').textContent = currentYear;
+            document.getElementById('dayOfYear').textContent = Math.floor(dayOfYear) + 1;
+            document.getElementById('season').textContent = getSeason(dayOfYear);
+            document.getElementById('moonPhaseShort').textContent = phase.name;
+            
+            // Oblicz rzeczywiste odległości - DYNAMICZNIE
+            const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI;
+            
+            const earthDistanceAU = planetData.earth.realDistanceAU * (1 - planetData.earth.eccentricity * Math.cos(earthOrbitAngle));
+            const earthDistanceKm = Math.round(earthDistanceAU * 149.6); // 1 AU = 149.6 mln km
+            
+            const moonDistanceEarthRadii = moonData.earth.moon.realDistanceEarthRadii * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
+            const moonDistanceKm = Math.round(moonDistanceEarthRadii * 6.371); // 1 promień Ziemi = 6371 km
+            
+            document.getElementById('earthDistance').textContent = earthDistanceKm + ' mln km';
+            document.getElementById('moonDistance').textContent = moonDistanceKm + ' tys km';
+            document.getElementById('visibilityMode').textContent = presets[currentPreset].name;
+            
+            // Rzeczywiste wartości skal bez oceniania
+            const moonSize = moonData.earth.moon.realRadiusEarths * earthRadius * planetSizeScale;
+            document.getElementById('moonVisibility').textContent = `${moonSize.toFixed(3)}x Ziemi`;
+            
+            updateToggleInfo();
+        }
+
+        function updateToggleInfo() {
+            const toggleInfo = document.getElementById('toggleInfo');
+            if (toggleInfo) {
+                const totalDays = parseFloat(document.getElementById('timeSlider').value);
+                const phase = getMoonPhase(totalDays);
+                const currentYear = Math.floor(totalDays / 365.25) + 2025;
+                const dayOfYear = totalDays % 365.25;
+                const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
+                const shortDate = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: '2-digit' });
+                const season = getSeason(dayOfYear);
+                toggleInfo.textContent = shortDate + ' • ' + season + ' • ' + phase.name;
+            }
+        }
+
+        function onWindowResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            
+            const controlPanel = document.getElementById('controlPanel');
+            const mobileToggle = document.getElementById('mobileToggle');
+            const isMobile = width <= 768;
+            
+            if (isMobile) {
+                mobileToggle.style.display = 'block';
+            } else {
+                mobileToggle.style.display = 'none';
+                controlPanel.classList.remove('mobile-collapsed');
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            updateCameraPosition();
+            
+            // Animacja świecenia Słońca
+            if (sun && sun.material && sun.material.emissive) {
+                const time = performance.now() * 0.001;
+                const intensity = 0.8 + Math.sin(time) * 0.2;
+                sun.material.emissive.setRGB(1.0 * intensity, 0.5 * intensity, 0.0);
+            }
+            
+            // Animacja czasowa
+            if (animationRunning) {
+                const currentTime = performance.now();
+                const deltaTime = currentTime - lastAnimationTime;
+                const adjustedDuration = 3000 / animationSpeed;
+                
+                if (deltaTime >= adjustedDuration) {
+                    const timeSlider = document.getElementById('timeSlider');
+                    let currentDay = parseFloat(timeSlider.value);
+                    currentDay += 1;
+                    
+                    if (currentDay > 10950) {
+                        currentDay = 0;
+                    }
+                    
+                    timeSlider.value = currentDay;
+                    updateUIOnly(currentDay);
+                    lastAnimationTime = currentTime;
+                } else {
+                    const dayProgress = deltaTime / adjustedDuration;
+                    const currentDay = parseFloat(document.getElementById('timeSlider').value);
+                    const interpolatedDay = currentDay + dayProgress;
+                    
+                    updatePositions(interpolatedDay);
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Inicjalizacja
+        init();
+        updatePositions(0);
+        updateUIOnly(0);
+        updateCameraModeUI();
+        updateScaleDisplays();
+
+        lastAnimationTime = performance.now();
+        document.getElementById('playButton').textContent = '⏸ Pauza';
+
+        animate();
+    </script>
+</body>
+</html>
