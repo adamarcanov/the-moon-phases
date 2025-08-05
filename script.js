@@ -16,7 +16,7 @@ let isMouseDown = false;
 let mouseX = 0, mouseY = 0;
 let targetRotationX = 0, targetRotationY = 0;
 let currentRotationX = 0, currentRotationY = 0;
-let cameraDistance = 8; // Dostosowane dla mniejszej orbity Księżyca (2.5 jednostek)
+let cameraDistance = 25; // Dostosowane dla większej orbity Księżyca
 let initialPinchDistance = 0;
 let initialCameraDistance = 0;
 
@@ -132,8 +132,8 @@ const earthOrbitRadius = planetData.earth.orbitRadius; // 50 jednostek
 const earthEccentricity = 0.0167; // ekscentryczność orbity Ziemi
 const earthAxialTilt = -23.5 * (Math.PI / 180); // nachylenie osi Ziemi (-23.5° dla prawidłowych pór roku)
 
-// Orbita Księżyca wokół Ziemi (POPRAWIONE PROPORCJE!)
-const moonOrbitRadius = 2.5; // Realistyczna proporcja: Wenus jest 65-100x dalej niż Księżyc
+// Orbita Księżyca wokół Ziemi (RZECZYWISTE PROPORCJE!)
+const moonOrbitRadius = 15; // 384,400 km = ~60 promieni Ziemi, ale kompromis wizualny na 15 jednostek
 const moonEccentricity = 0.055; // ekscentryczność orbity Księżyca
 const moonOrbitalTilt = 5.1 * (Math.PI / 180); // nachylenie orbity Księżyca (5.1°)
 const moonTiltMultiplier = 3; // Zwiększmy wizualny efekt nachylenia dla lepszej widoczności
@@ -147,7 +147,7 @@ function init() {
     
     // Kamera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(5, 3, 5); // Bliżej dla mniejszej orbity Księżyca
+    camera.position.set(8, 4, 8); // Bliżej dla obserwacji Ziemia-Księżyc
     camera.lookAt(0, 0, 0);
     
     // Renderer
@@ -485,7 +485,7 @@ function resetCamera() {
     targetRotationX = 0;
     targetRotationY = 0;
     if (cameraMode === 'earth') {
-        cameraDistance = 8; // Dostosowane dla mniejszej orbity Księżyca
+        cameraDistance = 15; // Zwiększone dla większej Ziemi
     } else {
         cameraDistance = 400; // Znacznie większa odległość dla całego układu
     }
@@ -499,7 +499,7 @@ function toggleCameraMode() {
         targetRotationY = 0;
     } else {
         cameraMode = 'earth';
-        cameraDistance = 8; // Bliżej dla systemu Ziemia-Księżyc
+        cameraDistance = 15; // Bliżej dla systemu Ziemia-Księżyc
         targetRotationX = 0;
         targetRotationY = 0;
     }
@@ -672,7 +672,7 @@ function onMouseUp() {
 function onMouseWheel(event) {
     cameraDistance += event.deltaY * 0.05; // Zwiększony krok dla znacznie większych odległości
     if (cameraMode === 'earth') {
-        cameraDistance = Math.max(4, Math.min(25, cameraDistance)); // Dostosowane dla mniejszej orbity Księżyca
+        cameraDistance = Math.max(8, Math.min(80, cameraDistance)); // Zwiększone dla większej orbity Księżyca
     } else {
         cameraDistance = Math.max(100, Math.min(2000, cameraDistance)); // Znacznie zwiększone dla całego układu
     }
@@ -722,7 +722,7 @@ function onTouchMove(event) {
         cameraDistance = initialCameraDistance / pinchRatio;
         
         if (cameraMode === 'earth') {
-            cameraDistance = Math.max(4, Math.min(25, cameraDistance)); // Dostosowane dla mniejszej orbity Księżyca
+            cameraDistance = Math.max(8, Math.min(80, cameraDistance)); // Zwiększone dla większej orbity Księżyca
         } else {
             cameraDistance = Math.max(100, Math.min(2000, cameraDistance)); // Znacznie zwiększone limity
         }
@@ -835,7 +835,7 @@ function getMoonPhase(totalDays) {
     const earthX = Math.cos(earthOrbitAngle) * earthDistance;
     const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
     
-    // Pozycja Księżyca względem Ziemi (używaj aktualnych wartości moonOrbitRadius = 2.5)
+    // Pozycja Księżyca względem Ziemi (używaj aktualnych wartości moonOrbitRadius = 15)
     const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
     const moonLocalX = Math.cos(moonOrbitAngle) * moonDistance;
     const moonLocalZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
@@ -1062,7 +1062,7 @@ function updateUIOnly(totalDays) {
     const earthDistanceKm = Math.round(earthDistanceAU * 3); // Przeliczenie na rzeczywiste miliony km
     
     const moonDistanceScale = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
-    const moonDistanceKm = Math.round(moonDistanceScale * 153.6); // Przeliczenie: 2.5 jednostki = ~384 tys km
+    const moonDistanceKm = Math.round(moonDistanceScale * 25.6); // Przeliczenie: 15 jednostek = ~384 tys km
     
     // Oblicz datę na podstawie dnia roku
     const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
