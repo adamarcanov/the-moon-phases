@@ -649,6 +649,7 @@
             sunPointLight.shadow.camera.far = 500;
             sunPointLight.shadow.mapSize.width = 2048;
             sunPointLight.shadow.mapSize.height = 2048;
+            sunPointLight.shadow.bias = -0.0001; // Redukcja shadow acne
             scene.add(sunPointLight);
             
             sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
