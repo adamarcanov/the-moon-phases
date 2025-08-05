@@ -1372,7 +1372,7 @@
             }
         }
 
-        // KLUCZOWA FUNKCJA - Naprawiona animacja bez skakania
+        // NAPRAWIONA funkcja animate - bez przeskoków
         function animate() {
             requestAnimationFrame(animate);
             
@@ -1388,30 +1388,31 @@
                 sun.material.emissive.setRGB(1.0 * intensity, 0.5 * intensity, 0.0);
             }
             
-            // NAPRAWIONA logika animacji czasowej
+            // CIĄGŁA animacja czasowa bez przeskoków
             if (animationRunning) {
                 const deltaTime = currentTime - lastAnimationTime;
-                const adjustedDuration = 3000 / animationSpeed; // czas trwania jednego dnia w ms
+                const dayDurationMs = 3000 / animationSpeed; // czas trwania jednego dnia w ms
                 
-                if (deltaTime >= adjustedDuration) {
-                    // Pełny dzień przeszedł - zaktualizuj slider i czas
-                    const timeSlider = document.getElementById('timeSlider');
-                    currentSimulationTime += 1;
-                    
-                    if (currentSimulationTime > 10950) {
-                        currentSimulationTime = 0;
-                    }
-                    
-                    timeSlider.value = currentSimulationTime;
-                    updatePositions(currentSimulationTime); // ZAWSZE aktualizuj pozycje
-                    updateUIOnly(currentSimulationTime);
-                    lastAnimationTime = currentTime;
-                } else {
-                    // Interpolacja w ramach bieżącego dnia - płynna animacja
-                    const dayProgress = deltaTime / adjustedDuration;
-                    const interpolatedTime = currentSimulationTime + dayProgress;
-                    updatePositions(interpolatedTime);
+                // Ciągłe dodawanie czasu bez skoków
+                const dayIncrement = deltaTime / dayDurationMs;
+                currentSimulationTime += dayIncrement;
+                
+                // Resetuj do 0 po przekroczeniu maksymalnego czasu
+                if (currentSimulationTime > 10950) {
+                    currentSimulationTime = 0;
                 }
+                
+                // Aktualizuj slider co każde 100ms dla wydajności
+                const now = performance.now();
+                if (!window.lastSliderUpdate || now - window.lastSliderUpdate > 100) {
+                    document.getElementById('timeSlider').value = currentSimulationTime;
+                    updateUIOnly(currentSimulationTime);
+                    window.lastSliderUpdate = now;
+                }
+                
+                // ZAWSZE płynna aktualizacja pozycji
+                updatePositions(currentSimulationTime);
+                lastAnimationTime = currentTime;
             }
             
             renderer.render(scene, camera);
