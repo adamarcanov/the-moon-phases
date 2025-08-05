@@ -522,40 +522,6 @@ function updateCameraModeUI() {
     }
 }
 
-function loadMoonTexture() {
-    const url = document.getElementById('moonTextureUrl').value.trim();
-    if (!url) {
-        alert('Wklej URL tekstury Księżyca!');
-        return;
-    }
-    
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(
-        url,
-        function(texture) {
-            console.log('✅ Nowa tekstura Księżyca załadowana!');
-            moon.material.map = texture;
-            moon.material.color.setHex(0xffffff);
-            moon.material.needsUpdate = true;
-        },
-        function(progress) {
-            console.log('Ładowanie tekstury...', Math.round(progress.loaded / progress.total * 100) + '%');
-        },
-        function(error) {
-            console.log('❌ Błąd ładowania tekstury:', error);
-            alert('Nie udało się załadować tekstury. Sprawdź URL i upewnij się, że obraz jest dostępny.');
-        }
-    );
-}
-
-function clearMoonTexture() {
-    moon.material.map = null;
-    moon.material.color.setHex(0xe0e0e0); // Powrót do szarego
-    moon.material.needsUpdate = true;
-    document.getElementById('moonTextureUrl').value = '';
-    console.log('🌑 Tekstura Księżyca usunięta - czysty szary materiał');
-}
-
 function setupEventListeners() {
     const canvas = document.getElementById('canvas3d');
     const timeSlider = document.getElementById('timeSlider');
@@ -566,8 +532,6 @@ function setupEventListeners() {
     const cameraToggleButton = document.getElementById('cameraToggleButton');
     const mobileToggle = document.getElementById('mobileToggle');
     const controlPanel = document.getElementById('controlPanel');
-    const loadTextureButton = document.getElementById('loadTextureButton');
-    const clearTextureButton = document.getElementById('clearTextureButton');
     const moonTextureUrl = document.getElementById('moonTextureUrl');
     
     // Mobile toggle
@@ -612,15 +576,6 @@ function setupEventListeners() {
     resetButton.addEventListener('click', resetAnimation);
     resetCameraButton.addEventListener('click', resetCamera);
     cameraToggleButton.addEventListener('click', toggleCameraMode);
-    loadTextureButton.addEventListener('click', loadMoonTexture);
-    clearTextureButton.addEventListener('click', clearMoonTexture);
-    
-    // Enter w polu tekstury również ładuje
-    moonTextureUrl.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            loadMoonTexture();
-        }
-    });
     
     // Responsywność
     window.addEventListener('resize', onWindowResize);
