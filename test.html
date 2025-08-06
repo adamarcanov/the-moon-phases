@@ -439,7 +439,7 @@
         let mouseX = 0, mouseY = 0;
         let targetRotationX = 0, targetRotationY = 0;
         let currentRotationX = 0, currentRotationY = 0;
-        let cameraDistance = 100; // Zmniejszone z 800 dla nowej skali
+        let cameraDistance = 10; // Zmniejszone z 800 dla nowej skali
         let initialPinchDistance = 0;
         let initialCameraDistance = 0;
 
@@ -1358,7 +1358,7 @@
             targetRotationX = 0;
             targetRotationY = 0;
             if (cameraMode === 'earth') {
-                cameraDistance = 25;
+                cameraDistance = 10;
             } else {
                 const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
                 cameraDistance = Math.max(200, earthOrbitRadius * 2);
@@ -1374,7 +1374,7 @@
                 targetRotationY = 0;
             } else {
                 cameraMode = 'earth';
-                cameraDistance = 25;
+                cameraDistance = 10;
                 targetRotationX = 0;
                 targetRotationY = 0;
             }
