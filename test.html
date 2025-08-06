@@ -633,11 +633,11 @@
             sun.position.set(0, 0, 0);
             scene.add(sun);
             
-            const sunGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.5, 32, 32);
+            const sunGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.1, 32, 32);
             const sunGlowMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0xffaa00,
                 transparent: true,
-                opacity: 0.12
+                opacity: 0.98
             });
             const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
             scene.add(sunGlow);
@@ -646,11 +646,11 @@
             sunLight.position.set(0, 0, 0);
             sunLight.castShadow = true;
             sunLight.shadow.camera.near = 50;
-            sunLight.shadow.camera.far = 15000;
+            sunLight.shadow.camera.far = 1500;
             sunLight.shadow.mapSize.width = 512;
             sunLight.shadow.mapSize.height = 512;
             sunLight.shadow.bias = -0.0001;
-            sunLight.shadow.normalBias = 5;
+            sunLight.shadow.normalBias = 0.2;
             scene.add(sunLight);
         }
 
