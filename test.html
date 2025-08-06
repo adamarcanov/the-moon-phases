@@ -294,7 +294,7 @@
     </style>
 </head>
 <body>
-    <div class="debug-info" id="debugInfo" style="display: none;">
+    <div class="debug-info" id="debugInfo">
         FPS: <span id="fpsDisplay">60</span><br>
         Ziemia: <span id="earthPosDisplay">(0, 0, 0)</span><br>
         Kamera: <span id="cameraPosDisplay">(0, 0, 0)</span>
@@ -327,17 +327,17 @@
                 <div class="slider-container">
                     <div class="slider-label">
                         <span>Skala orbit planet:</span>
-                        <span class="slider-value" id="planetScaleValue">0.08x</span>
+                        <span class="slider-value" id="planetScaleValue">0.5x</span>
                     </div>
-                    <input type="range" id="planetScaleSlider" class="scale-slider" min="0.02" max="0.1" value="0.08" step="0.001">
+                    <input type="range" id="planetScaleSlider" class="scale-slider" min="0.1" max="1.0" value="0.5" step="0.01">
                 </div>
                 
                 <div class="slider-container">
                     <div class="slider-label">
                         <span>Skala orbit księżyców:</span>
-                        <span class="slider-value" id="moonScaleValue">0.5x</span>
+                        <span class="slider-value" id="moonScaleValue">0.3x</span>
                     </div>
-                    <input type="range" id="moonScaleSlider" class="scale-slider" min="0.1" max="0.5" value="0.5" step="0.05">
+                    <input type="range" id="moonScaleSlider" class="scale-slider" min="0.1" max="0.5" value="0.3" step="0.05">
                 </div>
                 
                 <div class="slider-container">
@@ -439,13 +439,13 @@
         let mouseX = 0, mouseY = 0;
         let targetRotationX = 0, targetRotationY = 0;
         let currentRotationX = 0, currentRotationY = 0;
-        let cameraDistance = 800;
+        let cameraDistance = 100; // Zmniejszone z 800 dla nowej skali
         let initialPinchDistance = 0;
         let initialCameraDistance = 0;
 
-        // Skale konfiguracyjne - ustawienia początkowe
-        let planetDistanceScale = 0.08;
-        let moonDistanceScale = 0.5;
+        // Skale konfiguracyjne - ustawienia początkowe (zwiększone dla lepszej widoczności)
+        let planetDistanceScale = 0.5;
+        let moonDistanceScale = 0.3;
         let planetSizeScale = 1.0;
 
         // Dodane zmienne dla naprawienia skakania
@@ -460,14 +460,14 @@
         let previousEarthPosition = new THREE.Vector3(0, 0, 0);
         let targetEarthPosition = new THREE.Vector3(0, 0, 0);
 
-        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO - ZAKTUALIZOWANE NA 1 STYCZNIA 2026
-        const AU_TO_EARTH_RADII = 23481;
-        const DISPLAY_AU_SCALE = 200;
+        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO - PRZESKALOWANE
+        const AU_TO_EARTH_RADII = 200; // Było 23481 - znacznie zmniejszone
+        const DISPLAY_AU_SCALE = 1;
 
         // Wartości domyślne dla reset-u
         const DEFAULT_SETTINGS = {
-            planetDistanceScale: 0.08,
-            moonDistanceScale: 0.5,
+            planetDistanceScale: 0.5,
+            moonDistanceScale: 0.3,
             planetSizeScale: 1.0
         };
 
@@ -587,7 +587,7 @@
         };
 
         const earthRadius = 1;
-        const sunRadius = 109;
+        const sunRadius = 5; // Było 109 - zmniejszone dla lepszej skali
         const earthAxialTilt = -23.5 * (Math.PI / 180);
         const earthEccentricity = 0.0167;
         const moonEccentricity = 0.055;
@@ -597,8 +597,8 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000011);
             
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
-            camera.position.set(500, 200, 500);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(50, 20, 50);
             camera.lookAt(0, 0, 0);
             
             renderer = new THREE.WebGLRenderer({ 
@@ -614,7 +614,7 @@
             
             textureLoader = new THREE.TextureLoader();
             
-            const ambientLight = new THREE.AmbientLight(0x202040, 0.05);
+            const ambientLight = new THREE.AmbientLight(0x202040, 0.01);
             scene.add(ambientLight);
             
             createSun();
@@ -642,30 +642,16 @@
             const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
             scene.add(sunGlow);
             
-            const sunPointLight = new THREE.PointLight(0xffffff, 3, 10000);
-            sunPointLight.position.set(0, 0, 0);
-            sunPointLight.castShadow = true;
-            sunPointLight.shadow.camera.near = 10;
-            sunPointLight.shadow.camera.far = 500;
-            sunPointLight.shadow.mapSize.width = 2048;
-            sunPointLight.shadow.mapSize.height = 2048;
-            sunPointLight.shadow.bias = -0.0001; // Redukcja shadow acne
-            scene.add(sunPointLight);
-            
-            sunLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            sunLight.position.set(1, 0.5, 0.5);
-            sunLight.target.position.set(0, 0, 0);
+            sunLight = new THREE.PointLight(0xffffff, 2.5, 2000, 2);
+            sunLight.position.set(0, 0, 0);
             sunLight.castShadow = true;
-            sunLight.shadow.camera.near = 10;
-            sunLight.shadow.camera.far = 1000;
-            sunLight.shadow.camera.left = -200;
-            sunLight.shadow.camera.right = 200;
-            sunLight.shadow.camera.top = 200;
-            sunLight.shadow.camera.bottom = -200;
-            sunLight.shadow.mapSize.width = 2048;
-            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 1;
+            sunLight.shadow.camera.far = 1500;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.bias = -0.0001;
+            sunLight.shadow.normalBias = 0.01;
             scene.add(sunLight);
-            scene.add(sunLight.target);
         }
 
         function createPlanets() {
@@ -799,7 +785,7 @@
         }
 
         function createStars() {
-            const starDistance = 15000; // Znacznie dalej od układu słonecznego
+            const starDistance = 3000; // Zmniejszone z 15000
             
             // Prawdziwe konstelacje z przybliżonymi pozycjami (rektascensja, deklinacja)
             const constellations = {
@@ -1417,14 +1403,16 @@
         }
 
         function resetAnimation() {
+            const startingDay = 309;
+
             animationRunning = false;
             document.getElementById('playButton').textContent = '▶ Play';
-            document.getElementById('timeSlider').value = 0;
+            document.getElementById('timeSlider').value = startingDay;
             document.getElementById('speedSlider').value = 1;
             animationSpeed = 1;
-            currentSimulationTime = 0;
-            updatePositions(0);
-            updateUIOnly(0);
+            currentSimulationTime = startingDay;
+            updatePositions(startingDay);
+            updateUIOnly(startingDay);
             updateScaleDisplays();
         }
 
@@ -1605,6 +1593,7 @@
         document.getElementById('playButton').textContent = '⏸ Pauza';
 
         animate();
+        resetAnimation();
     </script>
 </body>
 </html>
