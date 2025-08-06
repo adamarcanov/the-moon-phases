@@ -294,7 +294,7 @@
     </style>
 </head>
 <body>
-    <div class="debug-info" id="debugInfo">
+    <div class="debug-info" id="debugInfo" style="display: none;">
         FPS: <span id="fpsDisplay">60</span><br>
         Ziemia: <span id="earthPosDisplay">(0, 0, 0)</span><br>
         Kamera: <span id="cameraPosDisplay">(0, 0, 0)</span>
@@ -647,8 +647,8 @@
             sunLight.castShadow = true;
             sunLight.shadow.camera.near = 1;
             sunLight.shadow.camera.far = 1500;
-            sunLight.shadow.mapSize.width = 1024;
-            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.mapSize.width = 512;
+            sunLight.shadow.mapSize.height = 512;
             sunLight.shadow.bias = -0.0001;
             sunLight.shadow.normalBias = 0.01;
             scene.add(sunLight);
@@ -897,15 +897,15 @@
                     const y = starDistance * Math.sin(dec);
                     const z = starDistance * Math.cos(dec) * Math.sin(ra);
                     
-                    // Rozmiar gwiazdy zależny od jasności (magnitude)
-                    let starSize = Math.max(0.5, 4.0 - star.mag);
-                    if (star.mag < 1.5) starSize *= 1.5; // Jaśniejsze gwiazdy większe
+                    // Rozmiar gwiazdy zależny od jasności (magnitude) - ZWIĘKSZONY dla lepszej widoczności
+                    let starSize = Math.max(1.5, 6.0 - star.mag); // Było: (0.5, 4.0 - star.mag)
+                    if (star.mag < 1.5) starSize *= 2.0; // Było: 1.5
                     
-                    const starGeometry = new THREE.SphereGeometry(starSize, 8, 8);
+                    const starGeometry = new THREE.SphereGeometry(starSize, 12, 12); // Więcej segmentów dla gładszego wyglądu
                     const starMaterial = new THREE.MeshBasicMaterial({ 
                         color: getStarColor(star.mag),
                         emissive: getStarColor(star.mag),
-                        emissiveIntensity: 0.3
+                        emissiveIntensity: 0.8 // Było: 0.3 - znacznie jaśniejsze
                     });
                     
                     const starMesh = new THREE.Mesh(starGeometry, starMaterial);
@@ -915,12 +915,26 @@
                     starMesh.userData.magnitude = star.mag;
                     
                     scene.add(starMesh);
+                    
+                    // Dodaj subtelny blask wokół jaśniejszych gwiazd konstelacji
+                    if (star.mag < 2.5) {
+                        const glowGeometry = new THREE.SphereGeometry(starSize * 1.8, 8, 8);
+                        const glowMaterial = new THREE.MeshBasicMaterial({
+                            color: getStarColor(star.mag),
+                            transparent: true,
+                            opacity: 0.15
+                        });
+                        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+                        glowMesh.position.set(x, y, z);
+                        glowMesh.userData.isStars = true;
+                        scene.add(glowMesh);
+                    }
                 });
             });
             
-            // Dodaj dodatkowe gwiazdy tła dla pełnego nieba
+            // Dodaj mniej gwiazd tła żeby konstelacje się wyróżniały
             const backgroundStarGeometry = new THREE.BufferGeometry();
-            const backgroundStarCount = 2000;
+            const backgroundStarCount = 1000; // Było: 2000 - zmniejszone dla lepszej wydajności i widoczności konstelacji
             const positions = new Float32Array(backgroundStarCount * 3);
             
             for (let i = 0; i < backgroundStarCount * 3; i += 3) {
@@ -938,8 +952,10 @@
             backgroundStarGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             const backgroundStarMaterial = new THREE.PointsMaterial({ 
                 color: 0xaaaaff,
-                size: 1.0,
-                sizeAttenuation: false
+                size: 1.5, // Było: 1.0 - nieco większe dla lepszej widoczności
+                sizeAttenuation: false,
+                transparent: true,
+                opacity: 0.7 // Dodano przezroczystość żeby konstelacje się wyróżniały
             });
             const backgroundStars = new THREE.Points(backgroundStarGeometry, backgroundStarMaterial);
             backgroundStars.userData.isStars = true;
@@ -947,11 +963,11 @@
         }
         
         function getStarColor(magnitude) {
-            // Kolory gwiazd zależne od jasności
-            if (magnitude < 1.0) return 0xffffaa; // Bardzo jasne - białożółte
-            if (magnitude < 2.0) return 0xffffff; // Jasne - białe  
-            if (magnitude < 3.0) return 0xaaffff; // Średnie - białoniebieskie
-            return 0x8888ff; // Słabe - niebieskie
+            // Kolory gwiazd zależne od jasności - bardziej wyraziste
+            if (magnitude < 1.0) return 0xffffcc; // Bardzo jasne - ciepłe białożółte
+            if (magnitude < 2.0) return 0xffffee; // Jasne - białe  
+            if (magnitude < 3.0) return 0xccddff; // Średnie - białoniebieskie
+            return 0x99bbff; // Słabe - niebieskie
         }
 
         function loadTextureWithFallback(planet, planetInfo, urls, index = 0) {
