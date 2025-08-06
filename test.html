@@ -897,15 +897,14 @@
                     const y = starDistance * Math.sin(dec);
                     const z = starDistance * Math.cos(dec) * Math.sin(ra);
                     
-                    // Rozmiar gwiazdy zależny od jasności (magnitude) - ZWIĘKSZONY dla lepszej widoczności
-                    let starSize = Math.max(1.5, 6.0 - star.mag); // Było: (0.5, 4.0 - star.mag)
-                    if (star.mag < 1.5) starSize *= 2.0; // Było: 1.5
+                    let starSize = Math.max(0.5, 4.0 - star.mag);
+                    if (star.mag < 1.5) starSize *= 1.5;
                     
-                    const starGeometry = new THREE.SphereGeometry(starSize, 12, 12); // Więcej segmentów dla gładszego wyglądu
+                    const starGeometry = new THREE.SphereGeometry(starSize, 12, 12);
                     const starMaterial = new THREE.MeshBasicMaterial({ 
                         color: getStarColor(star.mag),
                         emissive: getStarColor(star.mag),
-                        emissiveIntensity: 0.8 // Było: 0.3 - znacznie jaśniejsze
+                        emissiveIntensity: 2
                     });
                     
                     const starMesh = new THREE.Mesh(starGeometry, starMaterial);
