@@ -294,7 +294,7 @@
     </style>
 </head>
 <body>
-    <div class="debug-info" id="debugInfo" style="display: none;">
+    <div class="debug-info" id="debugInfo">
         FPS: <span id="fpsDisplay">60</span><br>
         Ziemia: <span id="earthPosDisplay">(0, 0, 0)</span><br>
         Kamera: <span id="cameraPosDisplay">(0, 0, 0)</span>
@@ -454,7 +454,7 @@
         let lastFrameTime = 0;
         let frameCount = 0;
         let lastFpsTime = 0;
-        let debugMode = false;
+        let debugMode = true;
 
         // Poprzednie pozycje dla interpolacji
         let previousEarthPosition = new THREE.Vector3(0, 0, 0);
@@ -467,8 +467,8 @@
         // Wartości domyślne dla reset-u
         const DEFAULT_SETTINGS = {
             planetDistanceScale: 0.1,
-            moonDistanceScale: 0.5,
-            planetSizeScale: 1.0
+            moonDistanceScale: 0.1,
+            planetSizeScale: 4.0
         };
 
         // RZECZYWISTE POZYCJE PLANET NA 1 STYCZNIA 2026 (bazując na ephemeris)
@@ -773,7 +773,7 @@
             const moonOrbitMaterial = new THREE.LineBasicMaterial({ 
                 color: 0xaaaaaa,
                 transparent: true,
-                opacity: 0.7
+                opacity: 0.25
             });
             const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
             moonOrbitLine.userData.orbitLine = true;
@@ -897,15 +897,15 @@
                     const y = starDistance * Math.sin(dec);
                     const z = starDistance * Math.cos(dec) * Math.sin(ra);
                     
-                    // Rozmiar gwiazdy zależny od jasności (magnitude) - ZWIĘKSZONY dla lepszej widoczności
-                    let starSize = Math.max(1.5, 6.0 - star.mag); // Było: (0.5, 4.0 - star.mag)
-                    if (star.mag < 1.5) starSize *= 2.0; // Było: 1.5
+                    // Rozmiar gwiazdy zależny od jasności
+                    let starSize = Math.max(0.5, 4.0 - star.mag);
+                    if (star.mag < 1.5) starSize *= 1.5;
                     
                     const starGeometry = new THREE.SphereGeometry(starSize, 12, 12); // Więcej segmentów dla gładszego wyglądu
                     const starMaterial = new THREE.MeshBasicMaterial({ 
                         color: getStarColor(star.mag),
                         emissive: getStarColor(star.mag),
-                        emissiveIntensity: 0.8 // Było: 0.3 - znacznie jaśniejsze
+                        emissiveIntensity: 5 // Było: 0.3 - znacznie jaśniejsze
                     });
                     
                     const starMesh = new THREE.Mesh(starGeometry, starMaterial);
@@ -955,7 +955,7 @@
                 size: 1.5, // Było: 1.0 - nieco większe dla lepszej widoczności
                 sizeAttenuation: false,
                 transparent: true,
-                opacity: 0.7 // Dodano przezroczystość żeby konstelacje się wyróżniały
+                opacity: 0.5 // Dodano przezroczystość żeby konstelacje się wyróżniały
             });
             const backgroundStars = new THREE.Points(backgroundStarGeometry, backgroundStarMaterial);
             backgroundStars.userData.isStars = true;
