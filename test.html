@@ -650,7 +650,7 @@
             sunLight.shadow.mapSize.width = 512;
             sunLight.shadow.mapSize.height = 512;
             sunLight.shadow.bias = -0.0001;
-            sunLight.shadow.normalBias = 0.01;
+            sunLight.shadow.normalBias = 5;
             scene.add(sunLight);
         }
 
@@ -1135,7 +1135,7 @@
                 const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
                 cameraDistance = Math.max(200, earthOrbitRadius * 2);
             } else {
-                cameraDistance = 25;
+                cameraDistance = 10;
             }
         }
 
