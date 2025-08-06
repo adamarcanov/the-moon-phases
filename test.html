@@ -327,17 +327,17 @@
                 <div class="slider-container">
                     <div class="slider-label">
                         <span>Skala orbit planet:</span>
-                        <span class="slider-value" id="planetScaleValue">0.5x</span>
+                        <span class="slider-value" id="planetScaleValue">0.1x</span>
                     </div>
-                    <input type="range" id="planetScaleSlider" class="scale-slider" min="0.1" max="1.0" value="0.5" step="0.01">
+                    <input type="range" id="planetScaleSlider" class="scale-slider" min="0.02" max="0.1" value="0.1" step="0.001">
                 </div>
                 
                 <div class="slider-container">
                     <div class="slider-label">
                         <span>Skala orbit księżyców:</span>
-                        <span class="slider-value" id="moonScaleValue">0.3x</span>
+                        <span class="slider-value" id="moonScaleValue">0.5x</span>
                     </div>
-                    <input type="range" id="moonScaleSlider" class="scale-slider" min="0.1" max="0.5" value="0.3" step="0.05">
+                    <input type="range" id="moonScaleSlider" class="scale-slider" min="0.1" max="0.5" value="0.5" step="0.05">
                 </div>
                 
                 <div class="slider-container">
@@ -439,13 +439,13 @@
         let mouseX = 0, mouseY = 0;
         let targetRotationX = 0, targetRotationY = 0;
         let currentRotationX = 0, currentRotationY = 0;
-        let cameraDistance = 10; // Zmniejszone z 800 dla nowej skali
+        let cameraDistance = 10;
         let initialPinchDistance = 0;
         let initialCameraDistance = 0;
 
-        // Skale konfiguracyjne - ustawienia początkowe (zwiększone dla lepszej widoczności)
-        let planetDistanceScale = 0.5;
-        let moonDistanceScale = 0.3;
+        // Skale konfiguracyjne - ustawienia początkowe
+        let planetDistanceScale = 0.1;
+        let moonDistanceScale = 0.5;
         let planetSizeScale = 1.0;
 
         // Dodane zmienne dla naprawienia skakania
@@ -460,14 +460,14 @@
         let previousEarthPosition = new THREE.Vector3(0, 0, 0);
         let targetEarthPosition = new THREE.Vector3(0, 0, 0);
 
-        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO - PRZESKALOWANE
-        const AU_TO_EARTH_RADII = 200; // Było 23481 - znacznie zmniejszone
-        const DISPLAY_AU_SCALE = 1;
+        // RZECZYWISTE DANE UKŁADU SŁONECZNEGO - ZAKTUALIZOWANE NA 1 STYCZNIA 2026
+        const AU_TO_EARTH_RADII = 23481;
+        const DISPLAY_AU_SCALE = 200;
 
         // Wartości domyślne dla reset-u
         const DEFAULT_SETTINGS = {
-            planetDistanceScale: 0.5,
-            moonDistanceScale: 0.3,
+            planetDistanceScale: 0.1,
+            moonDistanceScale: 0.5,
             planetSizeScale: 1.0
         };
 
@@ -587,7 +587,7 @@
         };
 
         const earthRadius = 1;
-        const sunRadius = 5; // Było 109 - zmniejszone dla lepszej skali
+        const sunRadius = 109;
         const earthAxialTilt = -23.5 * (Math.PI / 180);
         const earthEccentricity = 0.0167;
         const moonEccentricity = 0.055;
@@ -597,8 +597,8 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x000011);
             
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
-            camera.position.set(50, 20, 50);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
+            camera.position.set(500, 200, 500);
             camera.lookAt(0, 0, 0);
             
             renderer = new THREE.WebGLRenderer({ 
@@ -637,17 +637,17 @@
             const sunGlowMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0xffaa00,
                 transparent: true,
-                opacity: 0.3
+                opacity: 0.12
             });
             const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
             scene.add(sunGlow);
             
-            sunLight = new THREE.PointLight(0xffffff, 2.5, 2000, 2);
+            sunLight = new THREE.PointLight(0xffffff, 2.5, 10000, 2);
             sunLight.position.set(0, 0, 0);
             sunLight.castShadow = true;
-            sunLight.shadow.camera.near = 1;
-            sunLight.shadow.camera.far = 1500;
-            sunLight.shadow.mapSize.width = 4002;
+            sunLight.shadow.camera.near = 50;
+            sunLight.shadow.camera.far = 15000;
+            sunLight.shadow.mapSize.width = 512;
             sunLight.shadow.mapSize.height = 512;
             sunLight.shadow.bias = -0.0001;
             sunLight.shadow.normalBias = 0.01;
@@ -785,7 +785,7 @@
         }
 
         function createStars() {
-            const starDistance = 3000; // Zmniejszone z 15000
+            const starDistance = 15000; // Znacznie dalej od układu słonecznego
             
             // Prawdziwe konstelacje z przybliżonymi pozycjami (rektascensja, deklinacja)
             const constellations = {
@@ -897,14 +897,15 @@
                     const y = starDistance * Math.sin(dec);
                     const z = starDistance * Math.cos(dec) * Math.sin(ra);
                     
-                    let starSize = Math.max(0.5, 4.0 - star.mag);
-                    if (star.mag < 1.5) starSize *= 1.5;
+                    // Rozmiar gwiazdy zależny od jasności (magnitude) - ZWIĘKSZONY dla lepszej widoczności
+                    let starSize = Math.max(1.5, 6.0 - star.mag); // Było: (0.5, 4.0 - star.mag)
+                    if (star.mag < 1.5) starSize *= 2.0; // Było: 1.5
                     
-                    const starGeometry = new THREE.SphereGeometry(starSize, 12, 12);
+                    const starGeometry = new THREE.SphereGeometry(starSize, 12, 12); // Więcej segmentów dla gładszego wyglądu
                     const starMaterial = new THREE.MeshBasicMaterial({ 
                         color: getStarColor(star.mag),
                         emissive: getStarColor(star.mag),
-                        emissiveIntensity: 2
+                        emissiveIntensity: 0.8 // Było: 0.3 - znacznie jaśniejsze
                     });
                     
                     const starMesh = new THREE.Mesh(starGeometry, starMaterial);
@@ -962,11 +963,11 @@
         }
         
         function getStarColor(magnitude) {
-            // Kolory gwiazd zależne od jasności - bardziej wyraziste
-            if (magnitude < 1.0) return 0xffffcc; // Bardzo jasne - ciepłe białożółte
-            if (magnitude < 2.0) return 0xffffee; // Jasne - białe  
-            if (magnitude < 3.0) return 0xccddff; // Średnie - białoniebieskie
-            return 0x99bbff; // Słabe - niebieskie
+            // Kolory gwiazd zależne od jasności
+            if (magnitude < 1.0) return 0xffffaa; // Bardzo jasne - białożółte
+            if (magnitude < 2.0) return 0xffffff; // Jasne - białe  
+            if (magnitude < 3.0) return 0xaaffff; // Średnie - białoniebieskie
+            return 0x8888ff; // Słabe - niebieskie
         }
 
         function loadTextureWithFallback(planet, planetInfo, urls, index = 0) {
