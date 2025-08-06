@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Cieni - Problem z Ostrością</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #canvas3d {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 100;
+            max-width: 350px;
+        }
+
+        .control-group {
+            margin: 15px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #64b5f6;
+        }
+
+        .slider {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .value-display {
+            color: #fff;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .info-box {
+            background: rgba(100,181,246,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .problem-box {
+            background: rgba(255,152,0,0.1);
+            border: 1px solid #ff9800;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        button {
+            background: #64b5f6;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #42a5f5;
+        }
+
+        .stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+
+        .stat-line {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas3d"></canvas>
+    
+    <div class="controls">
+        <h2>🔍 Test Cieni - Układ Słoneczny</h2>
+        
+        <div class="info-box">
+            <strong>Układ (od lewej do prawej):</strong><br>
+            • 🟡 Słońce (promień 20)<br>
+            • 🔘 Księżyc (promień 1.35)<br>
+            • 🔵 Ziemia (promień 5)<br>
+            <br>Księżyc rzuca cień na Ziemię!
+        </div>
+
+        <div class="control-group">
+            <label>Skala odległości: <span class="value-display" id="scaleDisplay">1.0x</span></label>
+            <input type="range" id="scaleSlider" class="slider" min="0.1" max="3.0" value="1.0" step="0.1">
+        </div>
+
+        <div class="control-group">
+            <label>Rozdzielczość cieni: <span class="value-display" id="shadowResDisplay">512</span></label>
+            <input type="range" id="shadowResSlider" class="slider" min="256" max="4096" value="512" step="256">
+        </div>
+
+        <div class="control-group">
+            <label>Shadow Camera Far: <span class="value-display" id="shadowFarDisplay">1000</span></label>
+            <input type="range" id="shadowFarSlider" class="slider" min="100" max="5000" value="1000" step="100">
+        </div>
+
+        <div class="control-group">
+            <label>Shadow Bias: <span class="value-display" id="shadowBiasDisplay">-0.0001</span></label>
+            <input type="range" id="shadowBiasSlider" class="slider" min="-0.001" max="0.001" value="-0.0001" step="0.0001">
+        </div>
+
+        <button id="resetBtn">🔄 Reset</button>
+        <button id="realScaleBtn">🌍 Prawdziwa Skala</button>
+        
+        <div class="problem-box">
+            <strong>⚠️ Problem:</strong><br>
+            Im większa odległość Słońce-Ziemia, tym gorsza jakość cieni. 
+            Przy prawdziwych proporcjach cień Księżyca na Ziemi będzie bardzo rozmyty.
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-line">Kamera: <span id="cameraPos">-</span></div>
+        <div class="stat-line">Słońce: <span id="sunPos">-</span></div>
+        <div class="stat-line">Ziemia: <span id="earthPos">-</span></div>
+        <div class="stat-line">Księżyc: <span id="moonPos">-</span></div>
+        <div class="stat-line">Odl. S-Z: <span id="sunEarthDist">-</span></div>
+        <div class="stat-line">Shadow Map: <span id="shadowMapSize">-</span></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer;
+        let sun, earth, moon;
+        let sunLight;
+        let earthRadius = 5;
+        let moonRadius = 1.35;  // 0.27 * 5 = proporcja zachowana ale widoczny
+        let sunRadius = 20;     // Zmniejszone z 545 żeby było widać inne obiekty
+        let realSunEarthDistance = 200; // Drastycznie zmniejszone dla testów
+        let realMoonEarthDistance = 15;  // Księżyc bliżej Ziemi
+        
+        let distanceScale = 1.0; // Większa skala startowa
+        let isMouseDown = false;
+        let mouseX = 0, mouseY = 0;
+        let cameraDistance = 100;
+        let cameraRotationX = 0.3, cameraRotationY = 0;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000011);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+            camera.position.set(30, 30, 100); // Lepsza pozycja startowa
+
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('canvas3d'),
+                antialias: true 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+            setupLighting();
+            createObjects();
+            setupControls();
+            setupEventListeners();
+        }
+
+        function createObjects() {
+            // Słońce (źródło światła) - ŻÓŁTE
+            const sunGeometry = new THREE.SphereGeometry(sunRadius, 32, 32);
+            const sunMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffff00,
+                emissive: 0xffaa00
+            });
+            sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            scene.add(sun);
+
+            // Ziemia - NIEBIESKA
+            const earthGeometry = new THREE.SphereGeometry(earthRadius, 64, 64);
+            const earthMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x0099ff 
+            });
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            earth.receiveShadow = true;
+            earth.castShadow = true;
+            scene.add(earth);
+
+            // Księżyc - SZARY, dobrze widoczny
+            const moonGeometry = new THREE.SphereGeometry(moonRadius, 32, 32);
+            const moonMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xcccccc 
+            });
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.receiveShadow = true;
+            moon.castShadow = true;
+            scene.add(moon);
+
+            updatePositions();
+        }
+
+        function setupLighting() {
+            // Światło ambientowe (bardzo słabe)
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.1);
+            scene.add(ambientLight);
+
+            // Światło punktowe ze Słońca
+            sunLight = new THREE.PointLight(0xffffff, 2, 0, 2);
+            sunLight.castShadow = true;
+            
+            // Konfiguracja cieni
+            sunLight.shadow.mapSize.width = 512;
+            sunLight.shadow.mapSize.height = 512;
+            sunLight.shadow.camera.near = 50;
+            sunLight.shadow.camera.far = 1000;
+            sunLight.shadow.bias = -0.0001;
+            
+            scene.add(sunLight);
+        }
+
+        function updatePositions() {
+            const sunEarthDistance = realSunEarthDistance * distanceScale;
+            const moonEarthDistance = realMoonEarthDistance * distanceScale;
+
+            // LOGICZNE pozycjonowanie dla zaćmienia:
+            // Słońce -> Księżyc -> Ziemia (Księżyc rzuca cień na Ziemię)
+            sun.position.set(-sunEarthDistance, 0, 0);           // Słońce z lewej
+            moon.position.set(-moonEarthDistance, 0, 0);         // Księżyc między Słońcem a Ziemią  
+            earth.position.set(0, 0, 0);                         // Ziemia z prawej
+            
+            if (sunLight) {
+                sunLight.position.copy(sun.position);
+                
+                // Aktualizuj shadow camera
+                sunLight.shadow.camera.far = sunEarthDistance + 100;
+                sunLight.shadow.camera.near = 1;
+                sunLight.shadow.camera.updateProjectionMatrix();
+            }
+            
+            updateStats();
+        }
+
+        function setupControls() {
+            document.getElementById('scaleSlider').addEventListener('input', function(e) {
+                distanceScale = parseFloat(e.target.value);
+                document.getElementById('scaleDisplay').textContent = distanceScale.toFixed(1) + 'x';
+                updatePositions();
+                updateCameraPosition();
+            });
+
+            document.getElementById('shadowResSlider').addEventListener('input', function(e) {
+                const res = parseInt(e.target.value);
+                document.getElementById('shadowResDisplay').textContent = res;
+                if (sunLight) {
+                    sunLight.shadow.mapSize.width = res;
+                    sunLight.shadow.mapSize.height = res;
+                    sunLight.shadow.map = null; // Force regeneration
+                }
+            });
+
+            document.getElementById('shadowFarSlider').addEventListener('input', function(e) {
+                const far = parseInt(e.target.value);
+                document.getElementById('shadowFarDisplay').textContent = far;
+                if (sunLight) {
+                    sunLight.shadow.camera.far = far;
+                    sunLight.shadow.camera.updateProjectionMatrix();
+                }
+            });
+
+            document.getElementById('shadowBiasSlider').addEventListener('input', function(e) {
+                const bias = parseFloat(e.target.value);
+                document.getElementById('shadowBiasDisplay').textContent = bias.toFixed(4);
+                if (sunLight) {
+                    sunLight.shadow.bias = bias;
+                }
+            });
+
+            document.getElementById('resetBtn').addEventListener('click', function() {
+                distanceScale = 1.0;
+                document.getElementById('scaleSlider').value = 1.0;
+                document.getElementById('scaleDisplay').textContent = '1.0x';
+                
+                document.getElementById('shadowResSlider').value = 512;
+                document.getElementById('shadowResDisplay').textContent = '512';
+                if (sunLight) {
+                    sunLight.shadow.mapSize.width = 512;
+                    sunLight.shadow.mapSize.height = 512;
+                }
+                
+                cameraDistance = 100;
+                cameraRotationX = 0.3;
+                cameraRotationY = 0;
+                
+                updatePositions();
+                updateCameraPosition();
+            });
+
+            document.getElementById('realScaleBtn').addEventListener('click', function() {
+                distanceScale = 10.0; // Bardzo duże odległości = problematyczne cienie
+                document.getElementById('scaleSlider').value = 3.0; // Max suwaka
+                document.getElementById('scaleDisplay').textContent = '10.0x (EKSTREMALNE!)';
+                updatePositions();
+                updateCameraPosition();
+            });
+        }
+
+        function setupEventListeners() {
+            const canvas = document.getElementById('canvas3d');
+
+            canvas.addEventListener('mousedown', function(e) {
+                isMouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+
+            canvas.addEventListener('mousemove', function(e) {
+                if (!isMouseDown) return;
+                
+                const deltaX = e.clientX - mouseX;
+                const deltaY = e.clientY - mouseY;
+                
+                cameraRotationY += deltaX * 0.01;
+                cameraRotationX += deltaY * 0.01;
+                cameraRotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotationX));
+                
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                
+                updateCameraPosition();
+            });
+
+            canvas.addEventListener('mouseup', function() {
+                isMouseDown = false;
+            });
+
+            canvas.addEventListener('wheel', function(e) {
+                cameraDistance += e.deltaY * 0.1;
+                cameraDistance = Math.max(5, Math.min(500, cameraDistance));
+                updateCameraPosition();
+            });
+
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+
+        function updateCameraPosition() {
+            const x = Math.cos(cameraRotationX) * Math.sin(cameraRotationY) * cameraDistance;
+            const y = Math.sin(cameraRotationX) * cameraDistance;
+            const z = Math.cos(cameraRotationX) * Math.cos(cameraRotationY) * cameraDistance;
+            
+            camera.position.set(x, y, z);
+            camera.lookAt(0, 0, 0); // Patrz na Ziemię
+        }
+
+        function updateStats() {
+            const sunEarthDistance = realSunEarthDistance * distanceScale;
+            
+            document.getElementById('cameraPos').textContent = 
+                `(${camera.position.x.toFixed(1)}, ${camera.position.y.toFixed(1)}, ${camera.position.z.toFixed(1)})`;
+            document.getElementById('sunPos').textContent = 
+                `(${sun.position.x.toFixed(1)}, ${sun.position.y.toFixed(1)}, ${sun.position.z.toFixed(1)})`;
+            document.getElementById('earthPos').textContent = 
+                `(${earth.position.x.toFixed(1)}, ${earth.position.y.toFixed(1)}, ${earth.position.z.toFixed(1)})`;
+            document.getElementById('moonPos').textContent = 
+                `(${moon.position.x.toFixed(1)}, ${moon.position.y.toFixed(1)}, ${moon.position.z.toFixed(1)})`;
+            document.getElementById('sunEarthDist').textContent = sunEarthDistance.toFixed(1);
+            
+            if (sunLight && sunLight.shadow) {
+                document.getElementById('shadowMapSize').textContent = 
+                    `${sunLight.shadow.mapSize.width}x${sunLight.shadow.mapSize.height}`;
+            } else {
+                document.getElementById('shadowMapSize').textContent = 'Loading...';
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Animacja rotacji dla lepszego efektu wizualnego
+            earth.rotation.y += 0.01;
+            moon.rotation.y += 0.02;
+            
+            updateStats();
+            renderer.render(scene, camera);
+        }
+
+        // Inicjalizacja
+        init();
+        updateCameraPosition();
+        animate();
+    </script>
+</body>
+</html>
