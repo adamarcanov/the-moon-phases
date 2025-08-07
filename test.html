@@ -380,6 +380,7 @@
                     <button id="resetCameraButton" class="control-button">📷 Reset</button>
                     <button id="findMoonButton" class="control-button">🌙 Znajdź</button>
                     <button id="debugToggleButton" class="control-button">🐛 Debug</button>
+                    <button id="testSphereButton" class="control-button">🔴 Test</button>
                 </div>
             </div>
             
@@ -443,6 +444,7 @@
         let cameraMode = 'earth';
 
         // Brak dodatkowych zmiennych - wszystko w sunLight
+        let testSphereVisible = false;
 
         // Kontrola kamery
         let isMouseDown = false;
@@ -728,6 +730,21 @@
                     
                     // DODAJ DO ORBIT GROUP, NIE TILT GROUP - bez nachylenia osi
                     earthOrbitGroup.add(sunLight);
+                    
+                    // KULA TESTOWA - pokazuje pozycję lampy + RZUCA CIEŃ
+                    const testSphere = new THREE.SphereGeometry(0.5, 16, 16);
+                    const testMaterial = new THREE.MeshBasicMaterial({ 
+                        color: 0xff0000,
+                        emissive: 0xff0000,
+                        emissiveIntensity: 0.5
+                    });
+                    const testLamp = new THREE.Mesh(testSphere, testMaterial);
+                    testLamp.castShadow = true; // RZUCA CIEŃ NA ZIEMIĘ!
+                    testLamp.visible = testSphereVisible; // Początkowo ukryta
+                    earthOrbitGroup.add(testLamp);
+                    
+                    // Dodaj do zmiennej żeby móc aktualizować pozycję
+                    window.testLampSphere = testLamp;
                     
                     console.log('🌑 Lampa cieni przyczepiona do Ziemi');
                     
@@ -1105,7 +1122,16 @@
                         earthToSun.y = 0; // Wyzeruj Y żeby był na równym poziomie
                         
                         // Pozycja lampy: od Ziemi w stronę słońca na równym poziomie
-                        sunLight.position.copy(earthToSun.multiplyScalar(lampDistance));
+                        const lampPos = earthToSun.clone().multiplyScalar(lampDistance);
+                        sunLight.position.copy(lampPos);
+                        
+                        // AKTUALIZUJ KULĘ TESTOWĄ - blisko Ziemi (średnica Ziemi od Ziemi)
+                        if (window.testLampSphere) {
+                            const testDistance = 2; // Średnica Ziemi (2 * promień = 2 * 1)
+                            const testPos = earthToSun.clone().multiplyScalar(testDistance);
+                            window.testLampSphere.position.copy(testPos);
+                            window.testLampSphere.visible = testSphereVisible; // Aktualizuj widoczność
+                        }
                         
                         console.log('🌑 Lampa na równym poziomie:', sunLight.position);
                     }
@@ -1284,6 +1310,16 @@
             document.getElementById('cameraToggleButton').addEventListener('click', toggleCameraMode);
             document.getElementById('findMoonButton').addEventListener('click', findMoon);
             document.getElementById('debugToggleButton').addEventListener('click', toggleDebug);
+            
+            document.getElementById('testSphereButton').addEventListener('click', function() {
+                testSphereVisible = !testSphereVisible;
+                this.textContent = testSphereVisible ? '🔴 Test: ON' : '🔴 Test: OFF';
+                
+                // Przełącz widoczność kuli testowej
+                if (window.testLampSphere) {
+                    window.testLampSphere.visible = testSphereVisible;
+                }
+            });
             
             document.getElementById('mobileToggle').addEventListener('click', function() {
                 const controlPanel = document.getElementById('controlPanel');
