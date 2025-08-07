@@ -726,8 +726,8 @@
                     sunLight.shadow.camera.top = 20;
                     sunLight.shadow.camera.bottom = -20;
                     
-                    // DODAJ DO ZIEMI - porusza się razem z nią
-                    earthTiltGroup.add(sunLight);
+                    // DODAJ DO ORBIT GROUP, NIE TILT GROUP - bez nachylenia osi
+                    earthOrbitGroup.add(sunLight);
                     
                     console.log('🌑 Lampa cieni przyczepiona do Ziemi');
                     
@@ -1095,18 +1095,19 @@
                     moon.position.set(moonX, moonY, moonZ);
                     moon.rotation.y = moonOrbitAngle;
                     
-                    // AKTUALIZUJ POZYCJĘ LAMPY CIENI - na linii Ziemia-Słońce PO STRONIE SŁOŃCA
+                    // AKTUALIZUJ POZYCJĘ LAMPY CIENI - na linii Ziemia-Słońce PO STRONIE SŁOŃCA, RÓWNY POZIOM
                     if (sunLight) {
                         const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
                         const lampDistance = moonOrbitRadius * 2;
                         
-                        // Kierunek od Ziemi DO słońca (nie odwrotnie!)
+                        // Kierunek od Ziemi DO słońca w płaszczyźnie XZ (Y=0)
                         const earthToSun = new THREE.Vector3(0, 0, 0).sub(earthOrbitGroup.position).normalize();
+                        earthToSun.y = 0; // Wyzeruj Y żeby był na równym poziomie
                         
-                        // Pozycja lampy: od Ziemi W STRONĘ słońca na odległość 2 orbit księżyca
+                        // Pozycja lampy: od Ziemi w stronę słońca na równym poziomie
                         sunLight.position.copy(earthToSun.multiplyScalar(lampDistance));
                         
-                        console.log('🌑 Lampa po stronie SŁOŃCA:', sunLight.position);
+                        console.log('🌑 Lampa na równym poziomie:', sunLight.position);
                     }
                 } else {
                     const orbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
