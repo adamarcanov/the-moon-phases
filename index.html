@@ -3,45 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Układ Słoneczny - 30 Lat Symulacji Zaćmień</title>
+    <title>3D Układ Słoneczny - Proste Cienie</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div class="debug-info" id="debugInfo">
+        FPS: <span id="fpsDisplay">60</span><br>
+        Ziemia: <span id="earthPosDisplay">(0, 0, 0)</span><br>
+        Kamera: <span id="cameraPosDisplay">(0, 0, 0)</span><br>
+        Cień: <span id="shadowStatus">ON</span>
+    </div>
+
     <div class="ui-overlay">
         <button id="mobileToggle" class="mobile-toggle">
             <div>⚙️ Options</div>
-            <div class="toggle-info" id="toggleInfo">1 sty • Nów</div>
+            <div class="toggle-info" id="toggleInfo">1 sty • Stary sierp</div>
         </button>
         
         <div id="controlPanel" class="control-panel">
-            <h1>MOON phases simulation</h1>
+            <h1>🌌 Układ Słoneczny</h1>
             
             <div class="time-display">
-                <div id="currentDate">1 stycznia 2025</div>
-                <div><strong id="moonPhase">Nów</strong> • <span id="illumination">0%</span></div>
+                <div id="currentDate">1 stycznia 2026</div>
+                <div><strong id="moonPhase">Stary sierp</strong> • <span id="illumination">25%</span></div>
             </div>
             
-            <input type="range" id="timeSlider" class="time-slider" min="0" max="10950" value="0" step="0.1">
+            <input type="range" id="timeSlider" class="time-slider" min="0" max="1461" value="0" step="0.1">
             
-            <div style="margin: 10px 0; text-align: center;">
-                <label style="font-size: 0.8em; opacity: 0.8;">Prędkość animacji:</label>
-                <input type="range" id="speedSlider" class="time-slider" min="0.1" max="30" value="1" step="0.1" style="margin: 5px 0;">
-                <div style="font-size: 0.75em; opacity: 0.7;">
-                    <span id="speedDisplay">1.0x</span> (doba = <span id="dayDuration">3s</span>)
+            <div class="section">
+                <h3>⚙️ Proporcje Układu</h3>
+                
+                <div style="font-size: 0.75em; color: #64b5f6; margin: 8px 0; opacity: 0.9;">
+                    ℹ️ Rzeczywiste proporcje: 1 AU = 23,481 promieni Ziemi<br>
+                    Słońce = 109x Ziemia, Księżyc = 0.273x Ziemia
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Skala orbit planet:</span>
+                        <span class="slider-value" id="planetScaleValue">0.1x</span>
+                    </div>
+                    <input type="range" id="planetScaleSlider" class="scale-slider" min="0.02" max="1" value="0.1" step="0.001">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Skala orbit księżyców:</span>
+                        <span class="slider-value" id="moonScaleValue">0.5x</span>
+                    </div>
+                    <input type="range" id="moonScaleSlider" class="scale-slider" min="0.1" max="1" value="0.5" step="0.05">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Skala rozmiarów planet:</span>
+                        <span class="slider-value" id="sizeScaleValue">1.0x</span>
+                    </div>
+                    <input type="range" id="sizeScaleSlider" class="scale-slider" min="1.0" max="4" value="1" step="0.1">
+                </div>
+                
+                <button id="resetScalesButton" class="reset-button">🔄 Reset do ustawień początkowych</button>
+            </div>
+            
+
+            
+            <div class="section">
+                <h3>🎮 Animacja</h3>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Prędkość:</span>
+                        <span class="slider-value"><span id="speedDisplay">1.0x</span> (doba = <span id="dayDuration">3s</span>)</span>
+                    </div>
+                    <input type="range" id="speedSlider" class="scale-slider" min="0.1" max="5" value="1" step="0.1">
+                </div>
+                
+                <div class="button-row">
+                    <button id="playButton" class="control-button">▶ Play</button>
+                    <button id="resetButton" class="control-button">⟲ Reset</button>
+                </div>
+                
+                <div class="button-row">
+                    <button id="cameraToggleButton" class="control-button">🌌 Kosmos</button>
+                    <button id="resetCameraButton" class="control-button">📷 Reset</button>
+                    <button id="findMoonButton" class="control-button">🌙 Znajdź</button>
+                    <button id="debugToggleButton" class="control-button">🐛 Debug</button>
+                    <button id="testSphereButton" class="control-button">🔴 Test</button>
                 </div>
             </div>
             
-            <div class="button-row">
-                <button id="playButton" class="control-button">▶ Play</button>
-                <button id="resetButton" class="control-button">⟲ Reset</button>
-                <button id="cameraToggleButton" class="control-button">🌌 Kosmos</button>
-                <button id="resetCameraButton" class="control-button">📷 Reset</button>
-            </div>
-            
             <div class="info-grid">
-                <div class="info-card">
+                <div class="info-card" id="currentYearCard">
                     <div class="info-label">Rok symulacji</div>
-                    <div class="info-value" id="currentYear">2025</div>
+                    <div class="info-value" id="currentYear">2026</div>
                 </div>
                 <div class="info-card">
                     <div class="info-label">Dzień roku</div>
@@ -52,14 +106,14 @@
                     <div class="info-value" id="season">Zima</div>
                 </div>
                 <div class="info-card">
-                    <div class="info-label">Odległość od Słońca</div>
+                    <div class="info-label">Ziemia-Słońce</div>
                     <div class="info-value" id="earthDistance">147 mln km</div>
                 </div>
-                <div class="info-card">
-                    <div class="info-label">Odległość Księżyca</div>
+                <div class="info-card" id="moonDistanceCard">
+                    <div class="info-label">Ziemia-Księżyc</div>
                     <div class="info-value" id="moonDistance">384 tys km</div>
                 </div>
-                <div class="info-card">
+                <div class="info-card" id="moonPhaseCard">
                     <div class="info-label">Faza Księżyca</div>
                     <div class="info-value" id="moonPhaseShort">Nów</div>
                 </div>
@@ -68,20 +122,12 @@
                     <div class="info-value" id="cameraMode">Ziemia</div>
                 </div>
                 <div class="info-card">
-                    <div class="info-label">Rozmiar Słońca</div>
-                    <div class="info-value" id="sunSize">15x Ziemia</div>
+                    <div class="info-label">Skala orbit</div>
+                    <div class="info-value" id="scaleInfo">1.0x</div>
                 </div>
                 <div class="info-card">
                     <div class="info-label">Rozmiar Księżyca</div>
-                    <div class="info-value" id="moonSize">0.27x Ziemia</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">Nachylenie osi Ziemi</div>
-                    <div class="info-value" id="earthTilt">23.5°</div>
-                </div>
-                <div class="info-card">
-                    <div class="info-label">Nachylenie orbity Księżyca</div>
-                    <div class="info-value" id="orbitalTilt">5.1°</div>
+                    <div class="info-value" id="moonVisibility">0.273x Ziemi</div>
                 </div>
             </div>
         </div>

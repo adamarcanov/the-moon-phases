@@ -1,175 +1,213 @@
 // Globalne zmienne
 let scene, camera, renderer;
 let sun, earth, moon;
-let planets = {}; // Obiekt do przechowywania wszystkich planet
-let planetOrbitGroups = {}; // Grupy orbit dla każdej planety
+let planets = {};
+let planetOrbitGroups = {};
+let moonOrbitGroups = {};
 let earthOrbitGroup, earthTiltGroup, moonOrbitGroup;
 let sunLight;
-let textureLoader; // Globalny loader tekstur
-let animationRunning = true; // Uruchom animację od razu
+let textureLoader;
+let animationRunning = true;
 let lastAnimationTime = 0;
-let animationSpeed = 1; // 1 = normalna prędkość, 2 = 2x szybciej, 0.5 = 2x wolniej
-let cameraMode = 'earth'; // Dodaj inicjalizację trybu kamery
+let animationSpeed = 1;
+let cameraMode = 'earth';
+
+// Brak dodatkowych zmiennych - wszystko w sunLight
+let testSphereVisible = false;
 
 // Kontrola kamery
 let isMouseDown = false;
 let mouseX = 0, mouseY = 0;
 let targetRotationX = 0, targetRotationY = 0;
 let currentRotationX = 0, currentRotationY = 0;
-let cameraDistance = 25; // Dostosowane dla większej orbity Księżyca
+let cameraDistance = 10;
 let initialPinchDistance = 0;
 let initialCameraDistance = 0;
 
-// Parametry fizyczne i orbitalne (realistyczne proporcje!)
-// Skala: 1 AU = 50 jednostek w symulacji (zwiększona dla lepszego rozłożenia)
-const sunRadius = 15; // 109x większy od Ziemi byłby 109, ale to przysłoniłoby wszystko - kompromis na 15x
+// Skale konfiguracyjne - ustawienia początkowe
+let planetDistanceScale = 0.1;
+let moonDistanceScale = 0.5;
+let planetSizeScale = 1.0;
 
-// Dane planet układu słonecznego (RZECZYWISTE PROPORCJE!)
+// Dodane zmienne dla naprawienia skakania
+let currentSimulationTime = 0; // Bieżący czas symulacji w dniach
+let smoothingFactor = 0.1; // Współczynnik wygładzania kamery
+let lastFrameTime = 0;
+let frameCount = 0;
+let lastFpsTime = 0;
+let debugMode = true;
+
+// Poprzednie pozycje dla interpolacji
+let previousEarthPosition = new THREE.Vector3(0, 0, 0);
+let targetEarthPosition = new THREE.Vector3(0, 0, 0);
+
+// RZECZYWISTE DANE UKŁADU SŁONECZNEGO - ZAKTUALIZOWANE NA 1 STYCZNIA 2026
+const AU_TO_EARTH_RADII = 23481;
+const DISPLAY_AU_SCALE = 200;
+
+// Wartości domyślne dla reset-u
+const DEFAULT_SETTINGS = {
+    planetDistanceScale: 0.1,
+    moonDistanceScale: 0.1,
+    planetSizeScale: 4.0
+};
+
+// RZECZYWISTE POZYCJE PLANET NA 1 STYCZNIA 2026 (bazując na ephemeris)
 const planetData = {
     mercury: {
         name: 'Merkury',
-        radius: 0.38, // 0.38 × earthRadius (rzeczywista proporcja)
-        orbitRadius: 19.5, // 0.39 AU × 50
-        orbitPeriod: 88, // dni
-        startAngle: 0, // Pozycja startowa w radianach
+        realDistanceAU: 0.387,
+        realRadiusEarths: 0.383,
+        orbitPeriod: 88,
+        eccentricity: 0.206,
+        startAngle: Math.PI * 1.6, // Superior conjunction 21 stycznia - blisko Słońca
         color: 0x8c7853,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/d/d9/Mercury_in_color_-_Prockter07-edit.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/4/4a/Mercury_in_true_color.jpg'
         ]
     },
     venus: {
-        name: 'Wenus', 
-        radius: 0.95, // 0.95 × earthRadius (rzeczywista proporcja)
-        orbitRadius: 36, // 0.72 AU × 50
+        name: 'Wenus',
+        realDistanceAU: 0.723,
+        realRadiusEarths: 0.949,
         orbitPeriod: 225,
-        startAngle: Math.PI * 0.3, // 54° offset
+        eccentricity: 0.007,
+        startAngle: Math.PI * 1.55, // Superior conjunction 6 stycznia - za Słońcem
         color: 0xffc649,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/8/85/Venus_globe.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg'
         ]
     },
     earth: {
         name: 'Ziemia',
-        radius: 1, // Referencja
-        orbitRadius: 50, // 1.0 AU × 50  
-        orbitPeriod: 365,
-        startAngle: Math.PI * 0.6, // 108° offset
+        realDistanceAU: 1.0,
+        realRadiusEarths: 1.0,
+        orbitPeriod: 365.25,
+        eccentricity: 0.0167,
+        startAngle: Math.PI * 1.57, // 1 stycznia blisko peryhelium (4 stycznia)
         color: 0x4fc3f7,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/5/56/Blue_Marble_Next_Generation_%2B_topography_%2B_bathymetry.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/5/56/Blue_Marble_Next_Generation_%2B_topography_%2B_bathymetry.jpg'
         ]
     },
     mars: {
         name: 'Mars',
-        radius: 0.53, // 0.53 × earthRadius (rzeczywista proporcja)
-        orbitRadius: 76, // 1.52 AU × 50
+        realDistanceAU: 1.524,
+        realRadiusEarths: 0.532,
         orbitPeriod: 687,
-        startAngle: Math.PI * 0.9, // 162° offset
+        eccentricity: 0.094,
+        startAngle: Math.PI * 1.6, // Koniunkcja 9 stycznia - blisko Słońca
         color: 0xcd5c5c,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/5/58/Mars_23_aug_2003_hubble.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg'
         ]
     },
     jupiter: {
         name: 'Jowisz',
-        radius: 11.2, // 11.2 × earthRadius (rzeczywista proporcja - to będzie DUŻY!)
-        orbitRadius: 260, // 5.2 AU × 50
-        orbitPeriod: 4333, // 12 lat × 365 dni
-        startAngle: Math.PI * 1.2, // 216° offset
+        realDistanceAU: 5.204,
+        realRadiusEarths: 11.2,
+        orbitPeriod: 4333,
+        eccentricity: 0.049,
+        startAngle: Math.PI * 0.05, // Opozycja 10 stycznia - po przeciwnej stronie od Słońca
         color: 0xd8ca9d,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/e/e1/Jupiter_by_Cassini-Huygens.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/2/2b/Jupiter_and_its_shrunken_Great_Red_Spot.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/e/e1/Jupiter_by_Cassini-Huygens.jpg'
         ]
     },
     saturn: {
         name: 'Saturn',
-        radius: 9.4, // 9.4 × earthRadius (rzeczywista proporcja)
-        orbitRadius: 475, // 9.5 AU × 50
-        orbitPeriod: 10585, // 29 lat × 365 dni
-        startAngle: Math.PI * 1.5, // 270° offset
+        realDistanceAU: 9.537,
+        realRadiusEarths: 9.4,
+        orbitPeriod: 10585,
+        eccentricity: 0.052,
+        startAngle: Math.PI * 0.8, // Przybliżona pozycja na podstawie danych księżycowych
         color: 0xfad5a5,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/c/c1/Saturn_from_Cassini_Orbiter_%282004-10-06%29.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg'
         ]
     },
     uranus: {
         name: 'Uran',
-        radius: 4.0, // 4.0 × earthRadius (rzeczywista proporcja)
-        orbitRadius: 960, // 19.2 AU × 50
-        orbitPeriod: 30660, // 84 lata × 365 dni
-        startAngle: Math.PI * 1.8, // 324° offset
+        realDistanceAU: 19.19,
+        realRadiusEarths: 4.0,
+        orbitPeriod: 30660,
+        eccentricity: 0.046,
+        startAngle: Math.PI * 0.3, // Przybliżona pozycja
         color: 0x4fd0e3,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/4/48/Uranus_as_seen_by_NASA%27s_Voyager_2_%28remastered%29_-_JPEG_converted.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg'
         ]
     },
     neptune: {
-        name: 'Neptun', 
-        radius: 3.9, // 3.9 × earthRadius (rzeczywista proporcja)
-        orbitRadius: 1505, // 30.1 AU × 50
-        orbitPeriod: 60225, // 165 lat × 365 dni
-        startAngle: Math.PI * 0.1, // 18° offset
+        name: 'Neptun',
+        realDistanceAU: 30.07,
+        realRadiusEarths: 3.9,
+        orbitPeriod: 60225,
+        eccentricity: 0.010,
+        startAngle: Math.PI * 1.3, // Przybliżona pozycja
         color: 0x4b70dd,
         textureUrls: [
-            'https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg',
-            'https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_full.jpg'
+            'https://upload.wikimedia.org/wikipedia/commons/6/63/Neptune_-_Voyager_2_%2829347980845%29_flatten_crop.jpg'
         ]
     }
 };
 
-const earthRadius = planetData.earth.radius;
-const moonRadius = 0.27; // 0.27 × earthRadius (rzeczywista proporcja)
+// RZECZYWISTA POZYCJA KSIĘŻYCA NA 1 STYCZNIA 2026
+// Na podstawie ephemeris: Ostatnia kwadra 10 stycznia, więc 1 stycznia = "stary sierp"
+const moonData = {
+    earth: {
+        moon: {
+            name: 'Księżyc',
+            realDistanceEarthRadii: 60.3,
+            realRadiusEarths: 0.273,
+            orbitPeriod: 29.53,
+            color: 0xe0e0e0,
+            startPhaseAngle: Math.PI * 1.3 // Około 20 dni po nowie = "stary sierp"
+        }
+    }
+};
 
-// Orbita Ziemi wokół Słońca
-const earthOrbitRadius = planetData.earth.orbitRadius; // 50 jednostek
-const earthEccentricity = 0.0167; // ekscentryczność orbity Ziemi
-const earthAxialTilt = -23.5 * (Math.PI / 180); // nachylenie osi Ziemi (-23.5° dla prawidłowych pór roku)
-
-// Orbita Księżyca wokół Ziemi (RZECZYWISTE PROPORCJE!)
-const moonOrbitRadius = 15; // 384,400 km = ~60 promieni Ziemi, ale kompromis wizualny na 15 jednostek
-const moonEccentricity = 0.055; // ekscentryczność orbity Księżyca
-const moonOrbitalTilt = 5.1 * (Math.PI / 180); // nachylenie orbity Księżyca (5.1°)
-const moonTiltMultiplier = 3; // Zwiększmy wizualny efekt nachylenia dla lepszej widoczności
-
-const lunarCycleLength = 29.53;
+const earthRadius = 1;
+const sunRadius = 109;
+const earthAxialTilt = -23.5 * (Math.PI / 180);
+const earthEccentricity = 0.0167;
+const moonEccentricity = 0.055;
+const moonOrbitalTilt = 5.1 * (Math.PI / 180);
 
 function init() {
-    // Scena
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000011);
     
-    // Kamera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(8, 4, 8); // Bliżej dla obserwacji Ziemia-Księżyc
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50000);
+    camera.position.set(500, 200, 500);
     camera.lookAt(0, 0, 0);
     
-    // Renderer
     renderer = new THREE.WebGLRenderer({ 
         canvas: document.getElementById('canvas3d'),
         antialias: true
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    
+    // WŁĄCZ shadowMap dla cieni
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
     
-    // LOADER TEKSTUR - GLOBALNY
     textureLoader = new THREE.TextureLoader();
     
-    // Światło otoczenia (bardzo słabe)
-    const ambientLight = new THREE.AmbientLight(0x202040, 0.05);
+    const ambientLight = new THREE.AmbientLight(0x202040, 0.01);
     scene.add(ambientLight);
     
-    // Słońce z teksturą
+    createSun();
+    createPlanets();
+    createStars();
+    setupEventListeners();
+}
+
+function createSun() {
     const sunGeometry = new THREE.SphereGeometry(sunRadius, 32, 32);
     const sunMaterial = new THREE.MeshLambertMaterial({ 
         color: 0xffeb3b,
@@ -179,173 +217,144 @@ function init() {
     sun.position.set(0, 0, 0);
     scene.add(sun);
     
-    // Próba załadowania tekstury Słońca z fallbackiem
-    const sunTextureUrls = [
-        'https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg',
-        'https://upload.wikimedia.org/wikipedia/commons/9/99/Map_of_the_full_sun.jpg'
-    ];
-    
-    function loadSunTexture(urls, index = 0) {
-        if (!urls || index >= urls.length) {
-            console.log('❌ Wszystkie tekstury Słońca nieudane - używam koloru żółto-pomarańczowego');
-            return;
-        }
-        
-        textureLoader.load(
-            urls[index],
-            function(texture) {
-                console.log(`✅ Tekstura Słońca załadowana (${index + 1}/${urls.length})`);
-                sun.material.map = texture;
-                sun.material.color.setHex(0xffffff);
-                sun.material.needsUpdate = true;
-            },
-            undefined,
-            function(error) {
-                console.log(`❌ Błąd tekstury Słońca (${index + 1}/${urls.length}), próbuję następną...`);
-                loadSunTexture(urls, index + 1);
-            }
-        );
-    }
-    
-    loadSunTexture(sunTextureUrls);
-    
-    // Efekt świecenia wokół Słońca
-    const sunGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.5, 32, 32);
+    const sunGlowGeometry = new THREE.SphereGeometry(sunRadius * 1.1, 32, 32);
     const sunGlowMaterial = new THREE.MeshBasicMaterial({ 
         color: 0xffaa00,
         transparent: true,
-        opacity: 0.3
+        opacity: 0.98
     });
     const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
-    sunGlow.position.set(0, 0, 0);
     scene.add(sunGlow);
     
-    // Główne światło słoneczne - PointLight (punktowe)
-    const sunPointLight = new THREE.PointLight(0xffffff, 3, 100); // Zwiększona intensywność
-    sunPointLight.position.set(0, 0, 0);
-    sunPointLight.castShadow = true;
-    sunPointLight.shadow.camera.near = 1;
-    sunPointLight.shadow.camera.far = 50;
-    sunPointLight.shadow.mapSize.width = 2048;
-    sunPointLight.shadow.mapSize.height = 2048;
-    scene.add(sunPointLight);
+    // TYLKO PODSTAWOWE ŚWIATŁO OTOCZENIA
+    const ambientSunLight = new THREE.PointLight(0xffffff, 1.0, 10000, 2);
+    ambientSunLight.position.set(0, 0, 0);
+    ambientSunLight.castShadow = false;
+    scene.add(ambientSunLight);
     
-    // Dodatkowe światło kierunkowe dla lepszego oświetlenia
-    sunLight = new THREE.DirectionalLight(0xffffff, 0.8); // Zmniejszona intensywność kierunkowego
-    sunLight.position.set(1, 0.5, 0.5);
-    sunLight.target.position.set(0, 0, 0);
-    sunLight.castShadow = true;
-    sunLight.shadow.camera.near = 1;
-    sunLight.shadow.camera.far = 100;
-    sunLight.shadow.camera.left = -30;
-    sunLight.shadow.camera.right = 30;
-    sunLight.shadow.camera.top = 30;
-    sunLight.shadow.camera.bottom = -30;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    scene.add(sunLight);
-    scene.add(sunLight.target);
-    
-    // Orbita Ziemi wokół Słońca
-    earthOrbitGroup = new THREE.Group();
-    scene.add(earthOrbitGroup);
-    
-    // Grupa dla nachylenia osi Ziemi (stałe w przestrzeni)
-    earthTiltGroup = new THREE.Group();
-    earthTiltGroup.rotation.z = earthAxialTilt; // Nachylenie 23.5° - stałe w przestrzeni
-    earthOrbitGroup.add(earthTiltGroup);
-    
-    // Ziemia z teksturą mapy świata
-    const earthGeometry = new THREE.SphereGeometry(earthRadius, 64, 64);
-    
-    // Domyślny materiał Ziemi
-    const earthMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0x4fc3f7, // Domyślny kolor jeśli tekstura się nie załaduje
-        emissive: 0x000022
-    });
-    
-    earth = new THREE.Mesh(earthGeometry, earthMaterial);
-    earth.position.set(0, 0, 0); // Ziemia w centrum swojej grupy
-    earth.castShadow = true;
-    earth.receiveShadow = true;
-    earthTiltGroup.add(earth); // Dodaj do grupy z nachyleniem
-    
-    // Próba załadowania tekstury Ziemi z fallbackiem
-    const earthTextureUrls = planetData.earth.textureUrls;
-    function loadEarthTexture(urls, index = 0) {
-        if (!urls || index >= urls.length) {
-            console.log('❌ Wszystkie tekstury Ziemi nieudane - używam koloru niebieskiego oceanu');
-            return;
-        }
+    console.log('✅ Słońce z podstawowym oświetleniem');
+}
+
+
+
+function createPlanets() {
+    Object.keys(planetData).forEach(planetKey => {
+        const planetInfo = planetData[planetKey];
         
-        textureLoader.load(
-            urls[index],
-            function(texture) {
-                console.log(`✅ Tekstura Ziemi załadowana (${index + 1}/${urls.length})`);
-                earth.material.map = texture;
-                earth.material.color.setHex(0xffffff); // Białe oświetlenie dla naturalnych kolorów
-                earth.material.needsUpdate = true;
-            },
-            function(progress) {
-                console.log('Ładowanie tekstury Ziemi:', Math.round(progress.loaded / progress.total * 100) + '%');
-            },
-            function(error) {
-                console.log(`❌ Błąd tekstury Ziemi (${index + 1}/${urls.length}), próbuję następną...`);
-                loadEarthTexture(urls, index + 1);
+        const orbitGroup = new THREE.Group();
+        scene.add(orbitGroup);
+        planetOrbitGroups[planetKey] = orbitGroup;
+        
+        if (planetKey === 'earth') {
+            earthOrbitGroup = orbitGroup;
+            earthTiltGroup = new THREE.Group();
+            earthOrbitGroup.add(earthTiltGroup);
+            
+            const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
+            const earthMaterial = new THREE.MeshLambertMaterial({ 
+                color: planetInfo.color,
+                emissive: 0x000022
+            });
+            
+            earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            earth.castShadow = false; // Ziemia nie rzuca cienia
+            earth.receiveShadow = true; // ALE ODBIERA CIENIE!
+            earthTiltGroup.add(earth);
+            
+            if (planetInfo.textureUrls) {
+                loadTextureWithFallback(earth, planetInfo, planetInfo.textureUrls);
             }
-        );
-    }
-    
-    loadEarthTexture(earthTextureUrls);
-    
-    // Orbita Księżyca wokół Ziemi
-    moonOrbitGroup = new THREE.Group();
-    moonOrbitGroup.position.set(0, 0, 0); // Centruj na Ziemi
-    earthTiltGroup.add(moonOrbitGroup); // Księżyc podąża za nachyloną Ziemią
-    
-    // Księżyc z teksturą
-    const moonGeometry = new THREE.SphereGeometry(moonRadius, 32, 32);
-    
-    // Domyślny materiał Księżyca
-    const moonMaterial = new THREE.MeshLambertMaterial({ 
-        color: 0xe0e0e0, // Domyślny szary kolor
-        emissive: 0x111111
+            
+            moonOrbitGroup = new THREE.Group();
+            earthTiltGroup.add(moonOrbitGroup);
+            
+            const moonRadius = moonData.earth.moon.realRadiusEarths;
+            const moonGeometry = new THREE.SphereGeometry(moonRadius, 32, 32);
+            const moonMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xf0f0f0,
+                emissive: 0x222222
+            });
+            
+            moon = new THREE.Mesh(moonGeometry, moonMaterial);
+            moon.castShadow = true; // KSIĘŻYC RZUCA CIEŃ!
+            moon.receiveShadow = false;
+            moonOrbitGroup.add(moon);
+            
+            planets[planetKey] = earth;
+            
+            // LAMPA CIENI PRZYCZEPIONA DO ZIEMI
+            sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            sunLight.castShadow = true;
+            sunLight.target = earth;
+            
+            // Ustawienia cieni
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 1;
+            sunLight.shadow.camera.far = 100;
+            sunLight.shadow.camera.left = -20;
+            sunLight.shadow.camera.right = 20;
+            sunLight.shadow.camera.top = 20;
+            sunLight.shadow.camera.bottom = -20;
+            
+            // DODAJ DO ORBIT GROUP, NIE TILT GROUP - bez nachylenia osi
+            earthOrbitGroup.add(sunLight);
+            
+            // KULA TESTOWA - pokazuje pozycję lampy + RZUCA CIEŃ
+            const testSphere = new THREE.SphereGeometry(0.5, 16, 16);
+            const testMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.5
+            });
+            const testLamp = new THREE.Mesh(testSphere, testMaterial);
+            testLamp.castShadow = true; // RZUCA CIEŃ NA ZIEMIĘ!
+            testLamp.visible = testSphereVisible; // Początkowo ukryta
+            earthOrbitGroup.add(testLamp);
+            
+            // Dodaj do zmiennej żeby móc aktualizować pozycję
+            window.testLampSphere = testLamp;
+            
+            console.log('🌑 Lampa cieni przyczepiona do Ziemi');
+            
+        } else {
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const material = new THREE.MeshLambertMaterial({ 
+                color: planetInfo.color,
+                emissive: 0x111111
+            });
+            
+            const planet = new THREE.Mesh(geometry, material);
+            planet.castShadow = false;
+            planet.receiveShadow = false;
+            orbitGroup.add(planet);
+            
+            planets[planetKey] = planet;
+            
+            if (planetInfo.textureUrls) {
+                loadTextureWithFallback(planet, planetInfo, planetInfo.textureUrls);
+            }
+        }
     });
     
-    moon = new THREE.Mesh(moonGeometry, moonMaterial);
-    moon.position.set(moonOrbitRadius, 0, 0);
-    moon.castShadow = true;
-    moon.receiveShadow = true;
-    moonOrbitGroup.add(moon);
-    
-    // Nie ładujemy tekstury Księżyca - zostawiamy czysty szary materiał
-    // dla lepszej edukacyjnej wizualizacji faz (bez mylących ciemnych plam)
-    console.log('💡 Księżyc bez tekstury - czyste fazy świetlne od Słońca!');
-    
-    // Linie orbit
     createOrbitLines();
-    
-    // Stwórz wszystkie planety
-    createPlanets();
-    
-    // Gwiazdy
-    createStars();
-    
-    // Event listeners
-    setupEventListeners();
 }
 
 function createOrbitLines() {
-    // Orbity wszystkich planet
+    scene.children = scene.children.filter(child => !child.userData.orbitLine);
+    
+    if (earthTiltGroup) {
+        earthTiltGroup.children = earthTiltGroup.children.filter(child => !child.userData.orbitLine);
+    }
+    
     Object.keys(planetData).forEach(planetKey => {
-        const planet = planetData[planetKey];
-        const orbitPoints = [];
+        const planetInfo = planetData[planetKey];
+        const orbitRadius = calculatePlanetOrbitRadius(planetInfo);
         
+        const orbitPoints = [];
         for (let i = 0; i <= 128; i++) {
             const angle = (i / 128) * Math.PI * 2;
-            // Używamy małej ekscentryczności dla wszystkich orbit (uproszczenie)
-            const eccentricity = planetKey === 'earth' ? earthEccentricity : 0.01;
-            const distance = planet.orbitRadius * (1 - eccentricity * Math.cos(angle));
+            const distance = orbitRadius * (1 - planetInfo.eccentricity * Math.cos(angle));
             orbitPoints.push(new THREE.Vector3(
                 Math.cos(angle) * distance,
                 0,
@@ -360,227 +369,542 @@ function createOrbitLines() {
             opacity: planetKey === 'earth' ? 0.6 : 0.3
         });
         const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
+        orbitLine.userData.orbitLine = true;
+        orbitLine.userData.planet = planetKey;
         scene.add(orbitLine);
     });
     
-    // ORBITA KSIĘŻYCA (specjalna - nachylona) - MUSI ZGADZAĆ SIĘ Z updatePositions()
-    // const moonOrbitPoints = [];
-    // for (let i = 0; i <= 128; i++) {
-    //     const angle = (i / 128) * Math.PI * 2;
-    //     const distance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(angle));
+    const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+    const moonOrbitPoints = [];
+    for (let i = 0; i <= 64; i++) {
+        const angle = (i / 64) * Math.PI * 2;
+        const distance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(angle));
         
-    //     // Zastosuj nachylenie orbity IDENTYCZNIE jak w updatePositions()
-    //     const x = Math.cos(angle) * distance;
-    //     const y = Math.sin(angle) * distance * Math.sin(moonOrbitalTilt) * moonTiltMultiplier; // DODAJ moonTiltMultiplier!
-    //     const z = Math.sin(angle) * distance * Math.cos(moonOrbitalTilt);
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance * Math.sin(moonOrbitalTilt) * 3;
+        const z = Math.sin(angle) * distance * Math.cos(moonOrbitalTilt);
         
-    //     moonOrbitPoints.push(new THREE.Vector3(x, y, z));
-    // }
-    // const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
-    // const moonOrbitMaterial = new THREE.LineBasicMaterial({ 
-    //     color: 0x666666,
-    //     transparent: true,
-    //     opacity: 0.5
-    // });
-    // const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
-    // earthOrbitGroup.add(moonOrbitLine); // Orbita księżyca podąża za Ziemią (ale bez nachylenia)
-}
-
-function createPlanets() {
-    // Funkcja pomocnicza do ładowania tekstur z fallbackiem
-    function loadTextureWithFallback(planet, planetInfo, urls, index = 0) {
-        if (!urls || index >= urls.length) {
-            console.log(`❌ Wszystkie tekstury ${planetInfo.name} nieudane - używam koloru`);
-            return;
-        }
-        
-        textureLoader.load(
-            urls[index],
-            function(texture) {
-                console.log(`✅ Tekstura ${planetInfo.name} załadowana (${index + 1}/${urls.length})`);
-                planet.material.map = texture;
-                planet.material.color.setHex(0xffffff);
-                planet.material.needsUpdate = true;
-            },
-            function(progress) {
-                console.log(`Ładowanie tekstury ${planetInfo.name}...`, Math.round(progress.loaded / progress.total * 100) + '%');
-            },
-            function(error) {
-                console.log(`❌ Błąd tekstury ${planetInfo.name} (${index + 1}/${urls.length}), próbuję następną...`);
-                loadTextureWithFallback(planet, planetInfo, urls, index + 1);
-            }
-        );
+        moonOrbitPoints.push(new THREE.Vector3(x, y, z));
     }
     
-    Object.keys(planetData).forEach(planetKey => {
-        if (planetKey === 'earth') return; // Ziemia już istnieje
-        
-        const planetInfo = planetData[planetKey];
-        
-        // Grupa orbity dla planety
-        const orbitGroup = new THREE.Group();
-        scene.add(orbitGroup);
-        planetOrbitGroups[planetKey] = orbitGroup;
-        
-        // Geometria i materiał planety
-        const geometry = new THREE.SphereGeometry(planetInfo.radius, 32, 32);
-        const material = new THREE.MeshLambertMaterial({ 
-            color: planetInfo.color,
-            emissive: 0x111111
-        });
-        
-        const planet = new THREE.Mesh(geometry, material);
-        // Ustaw pozycję startową z offsetem kątowym
-        const startX = Math.cos(planetInfo.startAngle) * planetInfo.orbitRadius;
-        const startZ = Math.sin(planetInfo.startAngle) * planetInfo.orbitRadius;
-        planet.position.set(startX, 0, startZ);
-        planet.castShadow = true;
-        planet.receiveShadow = true;
-        orbitGroup.add(planet);
-        
-        planets[planetKey] = planet;
-        
-        // Ładowanie tekstury z systemem fallback
-        if (planetInfo.textureUrls) {
-            loadTextureWithFallback(planet, planetInfo, planetInfo.textureUrls);
-        }
+    const moonOrbitGeometry = new THREE.BufferGeometry().setFromPoints(moonOrbitPoints);
+    const moonOrbitMaterial = new THREE.LineBasicMaterial({ 
+        color: 0xaaaaaa,
+        transparent: true,
+        opacity: 0.25
     });
+    const moonOrbitLine = new THREE.Line(moonOrbitGeometry, moonOrbitMaterial);
+    moonOrbitLine.userData.orbitLine = true;
+    moonOrbitLine.userData.planet = 'moon';
+    
+    if (earthTiltGroup) {
+        earthTiltGroup.add(moonOrbitLine);
+    }
 }
 
 function createStars() {
-    const starGeometry = new THREE.BufferGeometry();
-    const starCount = 800;
-    const positions = new Float32Array(starCount * 3);
+    const starDistance = 30000; // Znacznie dalej od układu słonecznego
     
-    for (let i = 0; i < starCount * 3; i += 3) {
-        positions[i] = (Math.random() - 0.5) * 200;
-        positions[i + 1] = (Math.random() - 0.5) * 200;
-        positions[i + 2] = (Math.random() - 0.5) * 200;
-    }
+    // Prawdziwe konstelacje z przybliżonymi pozycjami (rektascensja, deklinacja)
+    const constellations = {
+        // ZNAKI ZODIAKU
+        'Baran': [
+            { ra: 2.12, dec: 23.5, mag: 2.0 }, // Hamal
+            { ra: 2.07, dec: 20.8, mag: 2.6 }, // Sheratan
+            { ra: 1.91, dec: 20.5, mag: 4.4 }  // Mesarthim
+        ],
+        'Byk': [
+            { ra: 4.6, dec: 16.5, mag: 0.9 },   // Aldebaran
+            { ra: 5.44, dec: 28.6, mag: 3.0 },  // Ain
+            { ra: 3.41, dec: 24.1, mag: 1.7 }   // Alcyone (Plejady)
+        ],
+        'Bliźnięta': [
+            { ra: 7.58, dec: 28.0, mag: 1.6 },  // Castor
+            { ra: 7.76, dec: 28.0, mag: 1.1 }   // Pollux
+        ],
+        'Rak': [
+            { ra: 8.78, dec: 18.2, mag: 4.3 },  // Acubens
+            { ra: 8.44, dec: 21.5, mag: 3.9 }   // Al Tarf
+        ],
+        'Lew': [
+            { ra: 10.14, dec: 23.4, mag: 1.4 }, // Regulus
+            { ra: 11.82, dec: 14.6, mag: 2.0 }, // Denebola
+            { ra: 10.33, dec: 16.8, mag: 3.4 }  // Algieba
+        ],
+        'Panna': [
+            { ra: 13.42, dec: -11.2, mag: 1.0 }, // Spica
+            { ra: 12.93, dec: 3.4, mag: 3.4 },   // Zavijava
+            { ra: 14.85, dec: 1.9, mag: 2.8 }    // Vindemiatrix
+        ],
+        'Waga': [
+            { ra: 14.85, dec: -16.0, mag: 2.8 }, // Zubeneschamali
+            { ra: 15.28, dec: -9.4, mag: 2.6 }   // Zubenelgenubi
+        ],
+        'Skorpion': [
+            { ra: 16.49, dec: -26.4, mag: 1.1 }, // Antares
+            { ra: 17.56, dec: -37.1, mag: 1.6 }, // Shaula
+            { ra: 16.84, dec: -34.3, mag: 2.3 }  // Sargas
+        ],
+        'Strzelec': [
+            { ra: 19.04, dec: -29.9, mag: 1.8 }, // Kaus Australis
+            { ra: 18.96, dec: -26.3, mag: 2.1 }, // Nunki
+            { ra: 19.16, dec: -27.7, mag: 2.8 }  // Kaus Media
+        ],
+        'Koziorożec': [
+            { ra: 20.29, dec: -12.5, mag: 3.6 }, // Algedi
+            { ra: 21.37, dec: -16.1, mag: 2.9 }  // Deneb Algedi
+        ],
+        'Wodnik': [
+            { ra: 22.10, dec: -0.3, mag: 2.9 },  // Sadalsuud
+            { ra: 21.53, dec: -5.6, mag: 3.0 }   // Sadalmelik
+        ],
+        'Ryby': [
+            { ra: 1.49, dec: 15.3, mag: 3.6 },   // Alrescha
+            { ra: 23.67, dec: 5.6, mag: 4.5 }    // Fum al Samakah
+        ],
+        
+        // KONSTELACJE OKOŁOBIEGUNOWE
+        'Wielka Niedźwiedzica': [
+            { ra: 11.06, dec: 61.8, mag: 1.8 }, // Dubhe
+            { ra: 11.03, dec: 56.4, mag: 2.3 }, // Merak
+            { ra: 12.26, dec: 57.0, mag: 2.3 }, // Phecda
+            { ra: 12.26, dec: 57.0, mag: 2.3 }, // Megrez
+            { ra: 12.90, dec: 55.9, mag: 1.8 }, // Alioth
+            { ra: 13.42, dec: 49.3, mag: 2.2 }, // Mizar
+            { ra: 13.79, dec: 49.3, mag: 1.9 }  // Alkaid
+        ],
+        'Mała Niedźwiedzica': [
+            { ra: 2.53, dec: 89.3, mag: 2.0 },  // Polaris (Gwiazda Polarna)
+            { ra: 15.35, dec: 71.8, mag: 4.4 }, // Yildun
+            { ra: 16.29, dec: 75.8, mag: 4.2 }  // Pherkad
+        ],
+        'Kasjopeja': [
+            { ra: 0.95, dec: 56.5, mag: 2.2 },  // Schedar
+            { ra: 0.15, dec: 59.1, mag: 2.3 },  // Caph
+            { ra: 1.43, dec: 60.2, mag: 2.5 },  // Gamma Cas
+            { ra: 1.90, dec: 63.7, mag: 3.4 },  // Ruchbah
+            { ra: 2.29, dec: 67.1, mag: 3.4 }   // Segin
+        ],
+        'Orion': [
+            { ra: 5.92, dec: 7.4, mag: 0.1 },   // Rigel
+            { ra: 5.59, dec: 7.4, mag: 0.4 },   // Betelgeuse
+            { ra: 5.68, dec: -1.2, mag: 1.7 },  // Alnilam
+            { ra: 5.60, dec: -1.9, mag: 1.8 },  // Alnitak
+            { ra: 5.53, dec: -0.3, mag: 2.2 }   // Mintaka
+        ],
+        'Łabędź': [
+            { ra: 20.37, dec: 45.3, mag: 1.3 }, // Deneb
+            { ra: 19.51, dec: 27.9, mag: 2.2 }, // Sadr
+            { ra: 19.75, dec: 33.9, mag: 3.9 }  // Gienah
+        ]
+    };
     
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const starMaterial = new THREE.PointsMaterial({ 
-        color: 0xffffff,
-        size: 1.5,
-        sizeAttenuation: false
+    // Usuń stare gwiazdy
+    scene.children = scene.children.filter(child => !child.userData.isStars);
+    
+    // Stwórz gwiazdy z konstelacji
+    Object.keys(constellations).forEach(constName => {
+        const stars = constellations[constName];
+        
+        stars.forEach(star => {
+            // Konwersja współrzędnych równikowych na kartezjańskie
+            const ra = star.ra * (Math.PI / 12); // Rektascensja (godziny -> radiany)
+            const dec = star.dec * (Math.PI / 180); // Deklinacja (stopnie -> radiany)
+            
+            const x = starDistance * Math.cos(dec) * Math.cos(ra);
+            const y = starDistance * Math.sin(dec);
+            const z = starDistance * Math.cos(dec) * Math.sin(ra);
+            
+            // Rozmiar gwiazdy zależny od jasności
+            let starSize = Math.max(0.5, 4.0 - star.mag);
+            if (star.mag < 1.5) starSize *= 1.5;
+            
+            const starGeometry = new THREE.SphereGeometry(starSize, 12, 12); // Więcej segmentów dla gładszego wyglądu
+            const starMaterial = new THREE.MeshBasicMaterial({ 
+                color: getStarColor(star.mag),
+                emissive: getStarColor(star.mag),
+                emissiveIntensity: 5 // Było: 0.3 - znacznie jaśniejsze
+            });
+            
+            const starMesh = new THREE.Mesh(starGeometry, starMaterial);
+            starMesh.position.set(x, y, z);
+            starMesh.userData.isStars = true;
+            starMesh.userData.constellation = constName;
+            starMesh.userData.magnitude = star.mag;
+            
+            scene.add(starMesh);
+            
+            // Dodaj subtelny blask wokół jaśniejszych gwiazd konstelacji
+            if (star.mag < 2.5) {
+                const glowGeometry = new THREE.SphereGeometry(starSize * 1.8, 8, 8);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: getStarColor(star.mag),
+                    transparent: true,
+                    opacity: 0.15
+                });
+                const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+                glowMesh.position.set(x, y, z);
+                glowMesh.userData.isStars = true;
+                scene.add(glowMesh);
+            }
+        });
     });
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    scene.add(stars);
-}
-
-function updateSpeedDisplay() {
-    const speedDisplay = document.getElementById('speedDisplay');
-    const dayDuration = document.getElementById('dayDuration');
     
-    if (speedDisplay) {
-        speedDisplay.textContent = animationSpeed.toFixed(1) + 'x';
-    }
-    if (dayDuration) {
-        const duration = (3 / animationSpeed).toFixed(1);
-        dayDuration.textContent = duration + 's';
-    }
-}
-
-function resetCamera() {
-    targetRotationX = 0;
-    targetRotationY = 0;
-    if (cameraMode === 'earth') {
-        cameraDistance = 15; // Zwiększone dla większej Ziemi
-    } else {
-        cameraDistance = 400; // Znacznie większa odległość dla całego układu
-    }
-}
-
-function toggleCameraMode() {
-    if (cameraMode === 'earth') {
-        cameraMode = 'space';
-        cameraDistance = 400; // Większa odległość dla całego układu
-        targetRotationX = 0.3;
-        targetRotationY = 0;
-    } else {
-        cameraMode = 'earth';
-        cameraDistance = 15; // Bliżej dla systemu Ziemia-Księżyc
-        targetRotationX = 0;
-        targetRotationY = 0;
-    }
-    updateCameraModeUI();
-}
-
-function updateCameraModeUI() {
-    const cameraToggleButton = document.getElementById('cameraToggleButton');
-    const cameraModeElement = document.getElementById('cameraMode');
-    const cameraModeText = document.getElementById('cameraModeText');
+    // Dodaj mniej gwiazd tła żeby konstelacje się wyróżniały
+    const backgroundStarGeometry = new THREE.BufferGeometry();
+    const backgroundStarCount = 1000; // Było: 2000 - zmniejszone dla lepszej wydajności i widoczności konstelacji
+    const positions = new Float32Array(backgroundStarCount * 3);
     
-    if (cameraToggleButton) {
-        cameraToggleButton.innerHTML = cameraMode === 'earth' ? '🌌 Kosmos' : '🌍 Ziemia';
+    for (let i = 0; i < backgroundStarCount * 3; i += 3) {
+        // Równomierne rozmieszczenie na sferze
+        const u = Math.random();
+        const v = Math.random();
+        const theta = 2 * Math.PI * u;
+        const phi = Math.acos(2 * v - 1);
+        
+        positions[i] = starDistance * 0.9 * Math.sin(phi) * Math.cos(theta);
+        positions[i + 1] = starDistance * 0.9 * Math.cos(phi);
+        positions[i + 2] = starDistance * 0.9 * Math.sin(phi) * Math.sin(theta);
     }
-    if (cameraModeElement) {
-        cameraModeElement.textContent = cameraMode === 'earth' ? 'Ziemia' : 'Kosmos';
+    
+    backgroundStarGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const backgroundStarMaterial = new THREE.PointsMaterial({ 
+        color: 0xaaaaff,
+        size: 1.5, // Było: 1.0 - nieco większe dla lepszej widoczności
+        sizeAttenuation: false,
+        transparent: true,
+        opacity: 0.5 // Dodano przezroczystość żeby konstelacje się wyróżniały
+    });
+    const backgroundStars = new THREE.Points(backgroundStarGeometry, backgroundStarMaterial);
+    backgroundStars.userData.isStars = true;
+    scene.add(backgroundStars);
+}
+
+function getStarColor(magnitude) {
+    // Kolory gwiazd zależne od jasności
+    if (magnitude < 1.0) return 0xffffaa; // Bardzo jasne - białożółte
+    if (magnitude < 2.0) return 0xffffff; // Jasne - białe  
+    if (magnitude < 3.0) return 0xaaffff; // Średnie - białoniebieskie
+    return 0x8888ff; // Słabe - niebieskie
+}
+
+function loadTextureWithFallback(planet, planetInfo, urls, index = 0) {
+    if (!urls || index >= urls.length) {
+        console.log(`❌ Wszystkie tekstury ${planetInfo.name} nieudane - używam koloru`);
+        return;
     }
-    if (cameraModeText) {
-        cameraModeText.textContent = cameraMode === 'earth' ? 'Widok z Ziemi' : 'Widok z Kosmosu';
+    
+    textureLoader.load(
+        urls[index],
+        function(texture) {
+            console.log(`✅ Tekstura ${planetInfo.name} załadowana`);
+            planet.material.map = texture;
+            planet.material.color.setHex(0xffffff);
+            planet.material.needsUpdate = true;
+        },
+        undefined,
+        function(error) {
+            console.log(`❌ Błąd tekstury ${planetInfo.name}, próbuję następną...`);
+            loadTextureWithFallback(planet, planetInfo, urls, index + 1);
+        }
+    );
+}
+
+function calculatePlanetOrbitRadius(planetInfo) {
+    return planetInfo.realDistanceAU * AU_TO_EARTH_RADII * earthRadius * planetDistanceScale;
+}
+
+function calculateMoonOrbitRadius(moonInfo, planetRadius) {
+    return moonInfo.realDistanceEarthRadii * planetRadius * moonDistanceScale;
+}
+
+function calculatePlanetRadius(planetInfo) {
+    return planetInfo.realRadiusEarths * earthRadius * planetSizeScale;
+}
+
+function updatePlanetSizes() {
+    Object.keys(planetData).forEach(planetKey => {
+        const planetInfo = planetData[planetKey];
+        const planet = planets[planetKey];
+        if (planet) {
+            const newRadius = calculatePlanetRadius(planetInfo);
+            planet.scale.setScalar(newRadius);
+        }
+    });
+    
+    if (moon) {
+        const moonRadius = moonData.earth.moon.realRadiusEarths * earthRadius * planetSizeScale;
+        moon.scale.setScalar(moonRadius);
+    }
+}
+
+// KLUCZOWA FUNKCJA - Naprawiona aktualizacja pozycji
+function updatePositions(totalDays) {
+    // Zapisz poprzednią pozycję Ziemi dla interpolacji
+    if (earthOrbitGroup) {
+        previousEarthPosition.copy(earthOrbitGroup.position);
+    }
+
+    Object.keys(planetData).forEach(planetKey => {
+        const planetInfo = planetData[planetKey];
+        const orbitRadius = calculatePlanetOrbitRadius(planetInfo);
+        
+        if (planetKey === 'earth') {
+            const earthOrbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
+            const earthDistance = orbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
+            
+            const earthX = Math.cos(earthOrbitAngle) * earthDistance;
+            const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
+            
+            // Ustaw docelową pozycję Ziemi
+            targetEarthPosition.set(earthX, 0, earthZ);
+            earthOrbitGroup.position.copy(targetEarthPosition);
+            
+            // NAPRAWIONE nachylenie osi - zsynchronizowane z pozycją orbitalną
+            // W czerwcu (dzień ~172) biegun północny nachylony toward słońca (lato północne)
+            // W grudniu (dzień ~355/0) biegun północny nachylony away od słońca (zima północna)
+            const axialTiltAngle = earthOrbitAngle + Math.PI; // +180° offset dla prawidłowej orientacji
+            earthTiltGroup.rotation.z = earthAxialTilt * Math.cos(axialTiltAngle);
+            
+            const dayProgress = totalDays % 1;
+            earth.rotation.y = dayProgress * 2 * Math.PI;
+            
+            const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+            // RZECZYWISTA pozycja Księżyca z prawidłową fazą startową na 1 stycznia 2026
+            const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
+            const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
+            
+            const moonX = Math.cos(moonOrbitAngle) * moonDistance;
+            const moonY = Math.sin(moonOrbitAngle) * moonDistance * Math.sin(moonOrbitalTilt) * 3;
+            const moonZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
+            
+            moon.position.set(moonX, moonY, moonZ);
+            moon.rotation.y = moonOrbitAngle;
+            
+            // AKTUALIZUJ POZYCJĘ LAMPY CIENI - na linii Ziemia-Słońce PO STRONIE SŁOŃCA, RÓWNY POZIOM
+            if (sunLight) {
+                const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+                const lampDistance = moonOrbitRadius * 2;
+                
+                // Kierunek od Ziemi DO słońca w płaszczyźnie XZ (Y=0)
+                const earthToSun = new THREE.Vector3(0, 0, 0).sub(earthOrbitGroup.position).normalize();
+                earthToSun.y = 0; // Wyzeruj Y żeby był na równym poziomie
+                
+                // Pozycja lampy: od Ziemi w stronę słońca na równym poziomie
+                const lampPos = earthToSun.clone().multiplyScalar(lampDistance);
+                sunLight.position.copy(lampPos);
+                
+                // AKTUALIZUJ KULĘ TESTOWĄ - blisko Ziemi (średnica Ziemi od Ziemi)
+                if (window.testLampSphere) {
+                    const testDistance = 2; // Średnica Ziemi (2 * promień = 2 * 1)
+                    const testPos = earthToSun.clone().multiplyScalar(testDistance);
+                    window.testLampSphere.position.copy(testPos);
+                    window.testLampSphere.visible = testSphereVisible; // Aktualizuj widoczność
+                }
+                
+                console.log('🌑 Lampa na równym poziomie:', sunLight.position);
+            }
+        } else {
+            const orbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
+            const distance = orbitRadius * (1 - 0.01 * Math.cos(orbitAngle));
+            
+            const x = Math.cos(orbitAngle) * distance;
+            const z = Math.sin(orbitAngle) * distance;
+            
+            if (planets[planetKey]) {
+                planets[planetKey].position.set(x, 0, z);
+                
+                const dayProgress = totalDays % 1;
+                planets[planetKey].rotation.y = dayProgress * 2 * Math.PI;
+            }
+        }
+    });
+
+    // Cienie działają automatycznie - lampa podąża za Ziemią
+}
+
+function getMoonPhase(totalDays) {
+    const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+    // RZECZYWISTA pozycja Księżyca z fazą startową
+    const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
+    
+    const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+    const earthDistance = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
+    const earthX = Math.cos(earthOrbitAngle) * earthDistance;
+    const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
+    
+    const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+    const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
+    const moonLocalX = Math.cos(moonOrbitAngle) * moonDistance;
+    const moonLocalZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
+    
+    const sunToEarth = { x: earthX, z: earthZ };
+    const earthToMoon = { x: moonLocalX, z: moonLocalZ };
+    
+    const dotProduct = sunToEarth.x * earthToMoon.x + sunToEarth.z * earthToMoon.z;
+    const sunEarthMag = Math.sqrt(sunToEarth.x * sunToEarth.x + sunToEarth.z * sunToEarth.z);
+    const earthMoonMag = Math.sqrt(earthToMoon.x * earthToMoon.x + earthToMoon.z * earthToMoon.z);
+    
+    const cosAngle = dotProduct / (sunEarthMag * earthMoonMag);
+    const phaseAngle = Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI);
+    
+    if (phaseAngle < 22.5 || phaseAngle >= 337.5) return { name: 'Pełnia', illumination: 100 };
+    if (phaseAngle < 67.5) return { name: 'Ubywający garb', illumination: 75 };
+    if (phaseAngle < 112.5) return { name: 'Ostatnia kwadra', illumination: 50 };
+    if (phaseAngle < 157.5) return { name: 'Stary sierp', illumination: 25 };
+    if (phaseAngle < 202.5) return { name: 'Nów', illumination: 0 };
+    if (phaseAngle < 247.5) return { name: 'Młody sierp', illumination: 25 };
+    if (phaseAngle < 292.5) return { name: 'Pierwsza kwadra', illumination: 50 };
+    return { name: 'Przybywający garb', illumination: 75 };
+}
+
+function resetScales() {
+    planetDistanceScale = DEFAULT_SETTINGS.planetDistanceScale;
+    moonDistanceScale = DEFAULT_SETTINGS.moonDistanceScale;
+    planetSizeScale = DEFAULT_SETTINGS.planetSizeScale;
+    
+    document.getElementById('planetScaleSlider').value = planetDistanceScale;
+    document.getElementById('moonScaleSlider').value = moonDistanceScale;
+    document.getElementById('sizeScaleSlider').value = planetSizeScale;
+    
+    updateScaleDisplays();
+    updatePlanetSizes();
+    createOrbitLines();
+    
+    const currentTime = parseFloat(document.getElementById('timeSlider').value);
+    updatePositions(currentTime);
+    updateUIOnly(currentTime);
+    
+    if (cameraMode === 'space') {
+        const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+        cameraDistance = Math.max(200, earthOrbitRadius * 2);
+    } else {
+        cameraDistance = 10;
+    }
+}
+
+function updateScaleDisplays() {
+    document.getElementById('planetScaleValue').textContent = planetDistanceScale.toFixed(3) + 'x';
+    document.getElementById('moonScaleValue').textContent = moonDistanceScale.toFixed(1) + 'x';
+    document.getElementById('sizeScaleValue').textContent = planetSizeScale.toFixed(1) + 'x';
+    document.getElementById('speedDisplay').textContent = animationSpeed.toFixed(1) + 'x';
+    document.getElementById('dayDuration').textContent = (3 / animationSpeed).toFixed(1) + 's';
+    
+    const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+    const distanceFromSurface = earthOrbitRadius - sunRadius;
+    document.getElementById('scaleInfo').textContent = `${planetDistanceScale.toFixed(2)}x (Ziemia: ${distanceFromSurface.toFixed(0)} j. od powierzchni)`;
+}
+
+function checkEclipses(totalDays) {
+    const phase = getMoonPhase(totalDays);
+    
+    // Sprawdź zaćmienie Słońca (Księżyc blisko nów i w linii)
+    if (phase.name === 'Nów') {
+        // Podświetl UI elements
+        document.getElementById('currentYearCard').classList.add('shadow-indicator');
+        document.getElementById('moonPhaseCard').classList.add('shadow-indicator');
+        document.getElementById('moonDistanceCard').classList.add('shadow-indicator');
+    } 
+    // Sprawdź zaćmienie Księżyca (Księżyc w pełni i w cieniu Ziemi)
+    else if (phase.name === 'Pełnia') {
+        // Sprawdź czy Księżyc jest blisko płaszczyzny orbitalnej Ziemi
+        const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
+        const moonY = Math.sin(moonOrbitAngle) * Math.sin(moonOrbitalTilt);
+        
+        if (Math.abs(moonY) < 0.3) { // Blisko płaszczyzny orbitalnej
+            document.getElementById('moonPhaseCard').classList.add('shadow-indicator');
+            document.getElementById('moonDistanceCard').classList.add('shadow-indicator');
+        }
+    } else {
+        // Usuń podświetlenia
+        document.getElementById('currentYearCard').classList.remove('shadow-indicator');
+        document.getElementById('moonPhaseCard').classList.remove('shadow-indicator');
+        document.getElementById('moonDistanceCard').classList.remove('shadow-indicator');
     }
 }
 
 function setupEventListeners() {
     const canvas = document.getElementById('canvas3d');
-    const timeSlider = document.getElementById('timeSlider');
-    const speedSlider = document.getElementById('speedSlider');
-    const playButton = document.getElementById('playButton');
-    const resetButton = document.getElementById('resetButton');
-    const resetCameraButton = document.getElementById('resetCameraButton');
-    const cameraToggleButton = document.getElementById('cameraToggleButton');
-    const mobileToggle = document.getElementById('mobileToggle');
-    const controlPanel = document.getElementById('controlPanel');
-    const moonTextureUrl = document.getElementById('moonTextureUrl');
     
-    // Mobile toggle
-    mobileToggle.addEventListener('click', function() {
-        const isCollapsed = controlPanel.classList.contains('mobile-collapsed');
-        if (isCollapsed) {
-            controlPanel.classList.remove('mobile-collapsed');
-            mobileToggle.innerHTML = '<div>✕ Zamknij</div><div class="toggle-info" id="toggleInfo"></div>';
-        } else {
-            controlPanel.classList.add('mobile-collapsed');
-            mobileToggle.innerHTML = '<div>⚙️ Options</div><div class="toggle-info" id="toggleInfo"></div>';
-        }
-        updateToggleInfo();
-    });
-    
-    // Kontrola myszą
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('mousemove', onMouseMove);
     canvas.addEventListener('mouseup', onMouseUp);
     canvas.addEventListener('wheel', onMouseWheel);
     
-    // Kontrola dotykiem
     canvas.addEventListener('touchstart', onTouchStart);
     canvas.addEventListener('touchmove', onTouchMove);
     canvas.addEventListener('touchend', onTouchEnd);
     
-    // Suwak czasu
-    timeSlider.addEventListener('input', function(e) {
+    document.getElementById('timeSlider').addEventListener('input', function(e) {
         const totalDays = parseFloat(e.target.value);
+        currentSimulationTime = totalDays; // Zaktualizuj bieżący czas
         updatePositions(totalDays);
         updateUIOnly(totalDays);
     });
     
-    // Suwak prędkości
-    speedSlider.addEventListener('input', function(e) {
+    document.getElementById('speedSlider').addEventListener('input', function(e) {
         animationSpeed = parseFloat(e.target.value);
-        updateSpeedDisplay();
+        updateScaleDisplays();
     });
     
-    // Przyciski
-    playButton.addEventListener('click', toggleAnimation);
-    resetButton.addEventListener('click', resetAnimation);
-    resetCameraButton.addEventListener('click', resetCamera);
-    cameraToggleButton.addEventListener('click', toggleCameraMode);
+    document.getElementById('planetScaleSlider').addEventListener('input', function(e) {
+        planetDistanceScale = parseFloat(e.target.value);
+        updateScaleDisplays();
+        updatePlanetSizes();
+        createOrbitLines();
+        const currentTime = parseFloat(document.getElementById('timeSlider').value);
+        updatePositions(currentTime);
+        updateUIOnly(currentTime);
+    });
     
-    // Responsywność
+    document.getElementById('moonScaleSlider').addEventListener('input', function(e) {
+        moonDistanceScale = parseFloat(e.target.value);
+        updateScaleDisplays();
+        const currentTime = parseFloat(document.getElementById('timeSlider').value);
+        updatePositions(currentTime);
+    });
+    
+    document.getElementById('sizeScaleSlider').addEventListener('input', function(e) {
+        planetSizeScale = parseFloat(e.target.value);
+        updateScaleDisplays();
+        updatePlanetSizes();
+    });
+    
+    
+    document.getElementById('resetScalesButton').addEventListener('click', resetScales);
+    
+    document.getElementById('playButton').addEventListener('click', toggleAnimation);
+    document.getElementById('resetButton').addEventListener('click', resetAnimation);
+    document.getElementById('resetCameraButton').addEventListener('click', resetCamera);
+    document.getElementById('cameraToggleButton').addEventListener('click', toggleCameraMode);
+    document.getElementById('findMoonButton').addEventListener('click', findMoon);
+    document.getElementById('debugToggleButton').addEventListener('click', toggleDebug);
+    
+    document.getElementById('testSphereButton').addEventListener('click', function() {
+        testSphereVisible = !testSphereVisible;
+        this.textContent = testSphereVisible ? '🔴 Test: ON' : '🔴 Test: OFF';
+        
+        // Przełącz widoczność kuli testowej
+        if (window.testLampSphere) {
+            window.testLampSphere.visible = testSphereVisible;
+        }
+    });
+    
+    document.getElementById('mobileToggle').addEventListener('click', function() {
+        const controlPanel = document.getElementById('controlPanel');
+        const isCollapsed = controlPanel.classList.contains('mobile-collapsed');
+        if (isCollapsed) {
+            controlPanel.classList.remove('mobile-collapsed');
+            this.innerHTML = '<div>✕ Zamknij</div><div class="toggle-info" id="toggleInfo"></div>';
+        } else {
+            controlPanel.classList.add('mobile-collapsed');
+            this.innerHTML = '<div>⚙️ Options</div><div class="toggle-info" id="toggleInfo"></div>';
+        }
+        updateToggleInfo();
+    });
+    
     window.addEventListener('resize', onWindowResize);
     
-    // Inicjalizacja mobile UI
     initializeMobileUI();
 }
 
@@ -599,7 +923,6 @@ function initializeMobileUI() {
     updateToggleInfo();
 }
 
-// Kontrola kamery
 function onMouseDown(event) {
     isMouseDown = true;
     mouseX = event.clientX;
@@ -625,31 +948,22 @@ function onMouseUp() {
 }
 
 function onMouseWheel(event) {
-    cameraDistance += event.deltaY * 0.05; // Zwiększony krok dla znacznie większych odległości
+    cameraDistance += event.deltaY * 0.1;
     if (cameraMode === 'earth') {
-        cameraDistance = Math.max(8, Math.min(80, cameraDistance)); // Zwiększone dla większej orbity Księżyca
+        cameraDistance = Math.max(8, Math.min(100, cameraDistance));
     } else {
-        cameraDistance = Math.max(100, Math.min(2000, cameraDistance)); // Znacznie zwiększone dla całego układu
+        const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+        const maxDistance = Math.max(1000, earthOrbitRadius * 5);
+        cameraDistance = Math.max(100, Math.min(maxDistance, cameraDistance));
     }
-}
-
-// Dotyk
-let touchStartX = 0, touchStartY = 0;
-
-function getPinchDistance(touches) {
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx * dx + dy * dy);
 }
 
 function onTouchStart(event) {
     if (event.touches.length === 1) {
-        // Pojedynczy dotyk - obracanie
         touchStartX = event.touches[0].clientX;
         touchStartY = event.touches[0].clientY;
         isMouseDown = true;
     } else if (event.touches.length === 2) {
-        // Pinch to zoom
         initialPinchDistance = getPinchDistance(event.touches);
         initialCameraDistance = cameraDistance;
         isMouseDown = false;
@@ -660,7 +974,6 @@ function onTouchMove(event) {
     event.preventDefault();
     
     if (event.touches.length === 1 && isMouseDown) {
-        // Obracanie
         const deltaX = event.touches[0].clientX - touchStartX;
         const deltaY = event.touches[0].clientY - touchStartY;
         
@@ -671,15 +984,16 @@ function onTouchMove(event) {
         touchStartX = event.touches[0].clientX;
         touchStartY = event.touches[0].clientY;
     } else if (event.touches.length === 2) {
-        // Pinch to zoom
         const currentPinchDistance = getPinchDistance(event.touches);
         const pinchRatio = currentPinchDistance / initialPinchDistance;
         cameraDistance = initialCameraDistance / pinchRatio;
         
         if (cameraMode === 'earth') {
-            cameraDistance = Math.max(8, Math.min(80, cameraDistance)); // Zwiększone dla większej orbity Księżyca
+            cameraDistance = Math.max(8, Math.min(100, cameraDistance));
         } else {
-            cameraDistance = Math.max(100, Math.min(2000, cameraDistance)); // Znacznie zwiększone limity
+            const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+            const maxDistance = Math.max(1000, earthOrbitRadius * 5);
+            cameraDistance = Math.max(100, Math.min(maxDistance, cameraDistance));
         }
     }
 }
@@ -690,12 +1004,21 @@ function onTouchEnd(event) {
     }
 }
 
+function getPinchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+let touchStartX = 0, touchStartY = 0;
+
+// NAPRAWIONA funkcja updateCameraPosition - z płynną interpolacją
 function updateCameraPosition() {
-    currentRotationX += (targetRotationX - currentRotationX) * 0.1;
-    currentRotationY += (targetRotationY - currentRotationY) * 0.1;
+    // Płynna interpolacja rotacji
+    currentRotationX += (targetRotationX - currentRotationX) * smoothingFactor;
+    currentRotationY += (targetRotationY - currentRotationY) * smoothingFactor;
     
     if (cameraMode === 'earth') {
-        // Kamera podąża za Ziemią (uwzględniając nachylenie)
         const earthPos = earthOrbitGroup.position;
         
         const x = earthPos.x + Math.cos(currentRotationX) * Math.sin(currentRotationY) * cameraDistance;
@@ -705,7 +1028,6 @@ function updateCameraPosition() {
         camera.position.set(x, y, z);
         camera.lookAt(earthPos.x, earthPos.y, earthPos.z);
     } else {
-        // Widok z kosmosu (centrum układu) - zwiększone odległości
         const x = Math.cos(currentRotationX) * Math.sin(currentRotationY) * cameraDistance;
         const y = Math.sin(currentRotationX) * cameraDistance;
         const z = Math.cos(currentRotationX) * Math.cos(currentRotationY) * cameraDistance;
@@ -715,144 +1037,54 @@ function updateCameraPosition() {
     }
 }
 
-function updatePositions(totalDays) {
-    // AKTUALIZUJ WSZYSTKIE PLANETY - użyj totalDays zamiast dayOfYear
-    Object.keys(planetData).forEach(planetKey => {
-        const planetInfo = planetData[planetKey];
-        
-        if (planetKey === 'earth') {
-            // ORBITA ZIEMI WOKÓŁ SŁOŃCA (eliptyczna)
-            const earthOrbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
-            
-            // Oblicz eliptyczną odległość od Słońca
-            const earthDistance = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
-            
-            // Pozycja całej grupy Ziemi na eliptycznej orbicie
-            const earthX = Math.cos(earthOrbitAngle) * earthDistance;
-            const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
-            earthOrbitGroup.position.set(earthX, 0, earthZ);
-            
-            // ROTACJA ZIEMI WOKÓŁ OSI (doba) - nachylenie jest już ustawione w earthTiltGroup
-            const dayProgress = totalDays % 1;
-            earth.rotation.y = dayProgress * 2 * Math.PI;
-        } else {
-            // INNE PLANETY
-            const orbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
-            const eccentricity = 0.01; // Uproszczona ekscentryczność
-            const distance = planetInfo.orbitRadius * (1 - eccentricity * Math.cos(orbitAngle));
-            
-            const x = Math.cos(orbitAngle) * distance;
-            const z = Math.sin(orbitAngle) * distance;
-            
-            if (planets[planetKey]) {
-                planets[planetKey].position.set(x, 0, z);
-            }
-            
-            // Rotacja planety wokół własnej osi (uproszczona - 1 obrót na dobę ziemską)
-            if (planets[planetKey]) {
-                const dayProgress = totalDays % 1;
-                planets[planetKey].rotation.y = dayProgress * 2 * Math.PI;
-            }
-        }
-    });
-    
-    // ORBITA KSIĘŻYCA WOKÓŁ ZIEMI - CIĄGŁA PRZEZ LATA (bez resetów!)
-    const moonOrbitAngle = (totalDays / lunarCycleLength) * 2 * Math.PI;
-    
-    // Oblicz eliptyczną odległość Księżyca od Ziemi
-    const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
-    
-    // Pozycja Księżyca z nachyleniem orbity (5.1° x3 dla lepszej widoczności) względem Ziemi
-    const moonX = Math.cos(moonOrbitAngle) * moonDistance;
-    const moonY = Math.sin(moonOrbitAngle) * moonDistance * Math.sin(moonOrbitalTilt) * moonTiltMultiplier;
-    const moonZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
-    
-    moon.position.set(moonX, moonY, moonZ);
-    
-    // Synchroniczna rotacja Księżyca (zawsze ta sama strona do Ziemi)
-    moon.rotation.y = moonOrbitAngle;
-    
-    return { 
-        earthOrbitAngle: (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle, 
-        moonOrbitAngle, 
-        earthDistance: earthOrbitRadius * (1 - earthEccentricity * Math.cos((totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle)), 
-        moonDistance 
-    };
+function resetCamera() {
+    targetRotationX = 0;
+    targetRotationY = 0;
+    if (cameraMode === 'earth') {
+        cameraDistance = 10;
+    } else {
+        const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+        cameraDistance = Math.max(200, earthOrbitRadius * 2);
+    }
 }
 
-function getMoonPhase(totalDays) {
-    // Oblicz rzeczywiste pozycje w 3D dla prawidłowych faz - używaj ciągłego czasu!
-    const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
-    const moonOrbitAngle = (totalDays / lunarCycleLength) * 2 * Math.PI; // CIĄGŁY CZAS
-    
-    // Pozycja Ziemi względem Słońca (używaj aktualnych wartości)
-    const earthDistance = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
-    const earthX = Math.cos(earthOrbitAngle) * earthDistance;
-    const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
-    
-    // Pozycja Księżyca względem Ziemi (używaj aktualnych wartości moonOrbitRadius = 15)
-    const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
-    const moonLocalX = Math.cos(moonOrbitAngle) * moonDistance;
-    const moonLocalZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
-    
-    // Pozycja Księżyca względem Słońca (globalna)
-    const moonGlobalX = earthX + moonLocalX;
-    const moonGlobalZ = earthZ + moonLocalZ;
-    
-    // Wektor od Słońca do Ziemi
-    const sunToEarth = { x: earthX, z: earthZ };
-    
-    // Wektor od Ziemi do Księżyca  
-    const earthToMoon = { x: moonLocalX, z: moonLocalZ };
-    
-    // Kąt fazowy (kąt między wektorami)
-    const dotProduct = sunToEarth.x * earthToMoon.x + sunToEarth.z * earthToMoon.z;
-    const sunEarthMag = Math.sqrt(sunToEarth.x * sunToEarth.x + sunToEarth.z * sunToEarth.z);
-    const earthMoonMag = Math.sqrt(earthToMoon.x * earthToMoon.x + earthToMoon.z * earthToMoon.z);
-    
-    const cosAngle = dotProduct / (sunEarthMag * earthMoonMag);
-    const phaseAngle = Math.acos(Math.max(-1, Math.min(1, cosAngle))) * (180 / Math.PI);
-    
-    // Określ fazę na podstawie kąta fazowego
-    // 0° = Pełnia (Księżyc za Ziemią od Słońca)
-    // 180° = Nów (Księżyc między Ziemią a Słońcem)
-    if (phaseAngle < 22.5 || phaseAngle >= 337.5) return { name: 'Pełnia', illumination: 100 };
-    if (phaseAngle < 67.5) return { name: 'Ubywający garb', illumination: 75 };
-    if (phaseAngle < 112.5) return { name: 'Ostatnia kwadra', illumination: 50 };
-    if (phaseAngle < 157.5) return { name: 'Stary sierp', illumination: 25 };
-    if (phaseAngle < 202.5) return { name: 'Nów', illumination: 0 };
-    if (phaseAngle < 247.5) return { name: 'Młody sierp', illumination: 25 };
-    if (phaseAngle < 292.5) return { name: 'Pierwsza kwadra', illumination: 50 };
-    return { name: 'Przybywający garb', illumination: 75 };
+function toggleCameraMode() {
+    if (cameraMode === 'earth') {
+        cameraMode = 'space';
+        const earthOrbitRadius = calculatePlanetOrbitRadius(planetData.earth);
+        cameraDistance = Math.max(200, earthOrbitRadius * 2);
+        targetRotationX = 0.3;
+        targetRotationY = 0;
+    } else {
+        cameraMode = 'earth';
+        cameraDistance = 10;
+        targetRotationX = 0;
+        targetRotationY = 0;
+    }
+    updateCameraModeUI();
 }
 
-function updateUI(dayOfYear) {
-    const angles = updatePositions(dayOfYear);
-    const phase = getMoonPhase(dayOfYear); // Używaj nowej funkcji
+function findMoon() {
+    cameraMode = 'earth';
     
-    const date = new Date(2025, 0, dayOfYear + 1);
-    const dateStr = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' });
+    const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+    cameraDistance = Math.max(15, moonOrbitRadius * 1.5);
     
-    document.getElementById('currentDate').textContent = dateStr;
-    document.getElementById('moonPhase').textContent = phase.name;
-    document.getElementById('illumination').textContent = phase.illumination + '%';
-    document.getElementById('currentYear').textContent = currentYear;
-    document.getElementById('dayOfYear').textContent = Math.floor(dayOfYear) + 1;
+    targetRotationX = 0;
+    targetRotationY = 0;
     
-    updateToggleInfo();
+    updateCameraModeUI();
 }
 
-function updateToggleInfo() {
-    const toggleInfo = document.getElementById('toggleInfo');
-    if (toggleInfo) {
-        const totalDays = parseFloat(document.getElementById('timeSlider').value);
-        const phase = getMoonPhase(totalDays); // Użyj totalDays
-        const currentYear = Math.floor(totalDays / 365.25) + 2025;
-        const dayOfYear = totalDays % 365.25;
-        const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
-        const shortDate = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: '2-digit' });
-        const season = getSeason(dayOfYear);
-        toggleInfo.textContent = shortDate + ' • ' + season + ' • ' + phase.name;
+function updateCameraModeUI() {
+    const button = document.getElementById('cameraToggleButton');
+    const modeDisplay = document.getElementById('cameraMode');
+    
+    if (button) {
+        button.innerHTML = cameraMode === 'earth' ? '🌌 Kosmos' : '🌍 Ziemia';
+    }
+    if (modeDisplay) {
+        modeDisplay.textContent = cameraMode === 'earth' ? 'Ziemia' : 'Kosmos';
     }
 }
 
@@ -870,14 +1102,116 @@ function toggleAnimation() {
 }
 
 function resetAnimation() {
+    const startingDay = 309.7;
+
     animationRunning = false;
     document.getElementById('playButton').textContent = '▶ Play';
-    document.getElementById('timeSlider').value = 0;
+    document.getElementById('timeSlider').value = startingDay;
     document.getElementById('speedSlider').value = 1;
     animationSpeed = 1;
-    updatePositions(0);
-    updateUIOnly(0);
-    updateSpeedDisplay();
+    currentSimulationTime = startingDay;
+    updatePositions(startingDay);
+    updateUIOnly(startingDay);
+    updateScaleDisplays();
+}
+
+function toggleDebug() {
+    debugMode = !debugMode;
+    const debugInfo = document.getElementById('debugInfo');
+    debugInfo.style.display = debugMode ? 'block' : 'none';
+}
+
+function updateDebugInfo() {
+    if (!debugMode) return;
+    
+    frameCount++;
+    const currentTime = performance.now();
+    
+    if (currentTime - lastFpsTime >= 1000) {
+        const fps = Math.round((frameCount * 1000) / (currentTime - lastFpsTime));
+        document.getElementById('fpsDisplay').textContent = fps;
+        frameCount = 0;
+        lastFpsTime = currentTime;
+    }
+    
+    if (earthOrbitGroup) {
+        const pos = earthOrbitGroup.position;
+        document.getElementById('earthPosDisplay').textContent = 
+            `(${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}, ${pos.z.toFixed(0)})`;
+    }
+    
+    const camPos = camera.position;
+    document.getElementById('cameraPosDisplay').textContent = 
+        `(${camPos.x.toFixed(0)}, ${camPos.y.toFixed(0)}, ${camPos.z.toFixed(0)})`;
+}
+
+function getSeason(totalDays) {
+    // Oblicz pozycję orbitalną Ziemi
+    const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+    
+    // Przelicz kąt orbitalny na pory roku (dla półkuli północnej)
+    // 0° = przesilenie zimowe (21 grudnia)
+    // 90° = równonoc wiosenna (21 marca)  
+    // 180° = przesilenie letnie (21 czerwca)
+    // 270° = równonoc jesienna (21 września)
+    
+    let seasonAngle = (earthOrbitAngle + Math.PI) % (2 * Math.PI); // Normalizuj do 0-2π
+    let seasonDegrees = (seasonAngle * 180 / Math.PI) % 360;
+    
+    if (seasonDegrees >= 315 || seasonDegrees < 45) return 'Zima';      // Grudzień-Luty
+    if (seasonDegrees >= 45 && seasonDegrees < 135) return 'Wiosna';    // Marzec-Maj  
+    if (seasonDegrees >= 135 && seasonDegrees < 225) return 'Lato';     // Czerwiec-Sierpień
+    return 'Jesień';                                                     // Wrzesień-Listopad
+}
+
+function updateUIOnly(totalDays) {
+    const phase = getMoonPhase(totalDays);
+    
+    // RZECZYWISTE LATA 2026-2030
+    const currentYear = Math.floor(totalDays / 365.25) + 2026;
+    const dayOfYear = totalDays % 365.25;
+    
+    const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
+    const dateStr = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+    
+    document.getElementById('currentDate').textContent = dateStr;
+    document.getElementById('moonPhase').textContent = phase.name;
+    document.getElementById('illumination').textContent = phase.illumination + '%';
+    document.getElementById('currentYear').textContent = currentYear;
+    document.getElementById('dayOfYear').textContent = Math.floor(dayOfYear) + 1;
+    document.getElementById('season').textContent = getSeason(totalDays);
+    document.getElementById('moonPhaseShort').textContent = phase.name;
+    
+    const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+    const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
+    
+    const earthDistanceAU = planetData.earth.realDistanceAU * (1 - planetData.earth.eccentricity * Math.cos(earthOrbitAngle));
+    const earthDistanceKm = Math.round(earthDistanceAU * 149.6);
+    
+    const moonDistanceEarthRadii = moonData.earth.moon.realDistanceEarthRadii * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
+    const moonDistanceKm = Math.round(moonDistanceEarthRadii * 6.371);
+    
+    document.getElementById('earthDistance').textContent = earthDistanceKm + ' mln km';
+    document.getElementById('moonDistance').textContent = moonDistanceKm + ' tys km';
+    
+    // Sprawdź zaćmienia
+    checkEclipses(totalDays);
+    
+    updateToggleInfo();
+}
+
+function updateToggleInfo() {
+    const toggleInfo = document.getElementById('toggleInfo');
+    if (toggleInfo) {
+        const totalDays = parseFloat(document.getElementById('timeSlider').value);
+        const phase = getMoonPhase(totalDays);
+        const currentYear = Math.floor(totalDays / 365.25) + 2026;
+        const dayOfYear = totalDays % 365.25;
+        const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
+        const shortDate = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: '2-digit' });
+        const season = getSeason(totalDays);
+        toggleInfo.textContent = shortDate + ' • ' + season + ' • ' + phase.name;
+    }
 }
 
 function onWindowResize() {
@@ -888,7 +1222,6 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
     
-    // UI responsywność
     const controlPanel = document.getElementById('controlPanel');
     const mobileToggle = document.getElementById('mobileToggle');
     const isMobile = width <= 768;
@@ -899,160 +1232,64 @@ function onWindowResize() {
         mobileToggle.style.display = 'none';
         controlPanel.classList.remove('mobile-collapsed');
     }
-    
-    // Zapisz tryb kamery podczas resize
-    updateCameraModeUI();
 }
 
+// NAPRAWIONA funkcja animate - bez przeskoków
 function animate() {
     requestAnimationFrame(animate);
     
+    const currentTime = performance.now();
+    
     updateCameraPosition();
+    updateDebugInfo();
     
     // Animacja świecenia Słońca
     if (sun && sun.material && sun.material.emissive) {
-        const time = performance.now() * 0.001;
+        const time = currentTime * 0.001;
         const intensity = 0.8 + Math.sin(time) * 0.2;
         sun.material.emissive.setRGB(1.0 * intensity, 0.5 * intensity, 0.0);
     }
     
-    // Animacja - prędkość zależna od suwaka (domyślnie 1 dzień co 3 sekundy)
+    // CIĄGŁA animacja czasowa bez przeskoków
     if (animationRunning) {
-        const currentTime = performance.now();
         const deltaTime = currentTime - lastAnimationTime;
-        const adjustedDuration = 3000 / animationSpeed; // Prędkość wpływa na czas doby
+        const dayDurationMs = 3000 / animationSpeed; // czas trwania jednego dnia w ms
         
-        if (deltaTime >= adjustedDuration) {
-            // Przejdź do następnego dnia
-            const timeSlider = document.getElementById('timeSlider');
-            let currentDay = parseFloat(timeSlider.value);
-            currentDay += 1;
-            
-            if (currentDay > 10950) { // 30 lat
-                currentDay = 0;
-            }
-            
-            timeSlider.value = currentDay;
-            updateUIOnly(currentDay);
-            lastAnimationTime = currentTime;
-        } else {
-            // Płynna interpolacja wszystkich ruchów
-            const dayProgress = deltaTime / adjustedDuration; // 0-1 przez dostosowany czas
-            const currentDay = parseFloat(document.getElementById('timeSlider').value);
-            const interpolatedDay = currentDay + dayProgress;
-            
-            // Aktualizuj pozycje wszystkich planet używając totalDays
-            Object.keys(planetData).forEach(planetKey => {
-                const planetInfo = planetData[planetKey];
-                
-                if (planetKey === 'earth') {
-                    // Płynny ruch Ziemi wokół Słońca
-                    const earthOrbitAngle = (interpolatedDay / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
-                    const earthDistance = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
-                    const earthX = Math.cos(earthOrbitAngle) * earthDistance;
-                    const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
-                    earthOrbitGroup.position.set(earthX, 0, earthZ);
-                    
-                    // Płynna rotacja Ziemi wokół osi
-                    const dayRotationProgress = interpolatedDay % 1;
-                    earth.rotation.y = dayRotationProgress * 2 * Math.PI;
-                } else {
-                    // Płynny ruch innych planet
-                    const orbitAngle = (interpolatedDay / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
-                    const eccentricity = 0.01;
-                    const distance = planetInfo.orbitRadius * (1 - eccentricity * Math.cos(orbitAngle));
-                    
-                    const x = Math.cos(orbitAngle) * distance;
-                    const z = Math.sin(orbitAngle) * distance;
-                    
-                    if (planets[planetKey]) {
-                        planets[planetKey].position.set(x, 0, z);
-                    }
-                    
-                    // Rotacja planety
-                    if (planets[planetKey]) {
-                        const dayRotationProgress = interpolatedDay % 1;
-                        planets[planetKey].rotation.y = dayRotationProgress * 2 * Math.PI;
-                    }
-                }
-            });
-            
-            // Płynny ruch Księżyca - CIĄGŁY PRZEZ LATA
-            const moonOrbitAngle = (interpolatedDay / lunarCycleLength) * 2 * Math.PI;
-            const moonDistance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
-            
-            const moonX = Math.cos(moonOrbitAngle) * moonDistance;
-            const moonY = Math.sin(moonOrbitAngle) * moonDistance * Math.sin(moonOrbitalTilt) * moonTiltMultiplier;
-            const moonZ = Math.sin(moonOrbitAngle) * moonDistance * Math.cos(moonOrbitalTilt);
-            
-            moon.position.set(moonX, moonY, moonZ);
-            moon.rotation.y = moonOrbitAngle;
+        // Ciągłe dodawanie czasu bez skoków
+        const dayIncrement = deltaTime / dayDurationMs;
+        currentSimulationTime += dayIncrement;
+        
+        // Resetuj do 0 po przekroczeniu maksymalnego czasu (4 lata = 1461 dni)
+        if (currentSimulationTime > 1461) {
+            currentSimulationTime = 0;
         }
+        
+        // Aktualizuj slider co każde 100ms dla wydajności
+        const now = performance.now();
+        if (!window.lastSliderUpdate || now - window.lastSliderUpdate > 100) {
+            document.getElementById('timeSlider').value = currentSimulationTime;
+            updateUIOnly(currentSimulationTime);
+            window.lastSliderUpdate = now;
+        }
+        
+        // ZAWSZE płynna aktualizacja pozycji
+        updatePositions(currentSimulationTime);
+        lastAnimationTime = currentTime;
     }
     
     renderer.render(scene, camera);
 }
 
-function getSeason(dayOfYear) {
-    // Pory roku na półkuli północnej (w oparciu o rzeczywiste daty)
-    // 1 stycznia = dzień 0 (zima), przesilenie zimowe ~21 grudnia (dzień 355)
-    if (dayOfYear >= 355 || dayOfYear < 79) return 'Zima'; // 21 gru - 20 mar
-    if (dayOfYear >= 79 && dayOfYear < 172) return 'Wiosna'; // 20 mar - 21 cze  
-    if (dayOfYear >= 172 && dayOfYear < 266) return 'Lato'; // 21 cze - 23 wrz
-    return 'Jesień'; // 23 wrz - 21 gru
-}
-
-function updateUIOnly(totalDays) {
-    const phase = getMoonPhase(totalDays); // Używaj totalDays!
-    
-    // Przelicz totalDays na rok i dzień roku dla wyświetlania
-    const currentYear = Math.floor(totalDays / 365.25) + 2025;
-    const dayOfYear = totalDays % 365.25;
-    
-    // Oblicz realistyczne odległości
-    const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
-    const moonOrbitAngle = (totalDays / lunarCycleLength) * 2 * Math.PI;
-    
-    const earthDistanceAU = earthOrbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
-    const earthDistanceKm = Math.round(earthDistanceAU * 3); // Przeliczenie na rzeczywiste miliony km
-    
-    const moonDistanceScale = moonOrbitRadius * (1 - moonEccentricity * Math.cos(moonOrbitAngle));
-    const moonDistanceKm = Math.round(moonDistanceScale * 25.6); // Przeliczenie: 15 jednostek = ~384 tys km
-    
-    // Oblicz datę na podstawie dnia roku
-    const date = new Date(currentYear, 0, Math.floor(dayOfYear) + 1);
-    const dateStr = date.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
-    
-    document.getElementById('currentDate').textContent = dateStr;
-    document.getElementById('moonPhase').textContent = phase.name;
-    document.getElementById('illumination').textContent = phase.illumination + '%';
-    document.getElementById('dayOfYear').textContent = Math.floor(dayOfYear) + 1;
-    
-    // Nowe informacje
-    document.getElementById('season').textContent = getSeason(dayOfYear);
-    document.getElementById('earthDistance').textContent = earthDistanceKm + ' mln km';
-    document.getElementById('moonDistance').textContent = moonDistanceKm + ' tys km';
-    document.getElementById('moonPhaseShort').textContent = phase.name;
-    document.getElementById('cameraMode').textContent = cameraMode === 'earth' ? 'Ziemia' : 'Kosmos';
-    document.getElementById('earthTilt').textContent = '23.5°'; // Stałe nachylenie osi Ziemi
-    
-    // Informacja o nachyleniu orbity Księżyca (nie osi Ziemi)
-    const moonHeight = Math.sin(moonOrbitAngle) * Math.sin(moonOrbitalTilt) * moonTiltMultiplier;
-    const moonTiltInfo = moonHeight > 0 ? '↗ +5.1°' : moonHeight < 0 ? '↘ -5.1°' : '→ 0°';
-    document.getElementById('orbitalTilt').textContent = moonTiltInfo;
-    
-    updateToggleInfo();
-}
-
-// Start
+// Inicjalizacja
 init();
+currentSimulationTime = 0;
 updatePositions(0);
 updateUIOnly(0);
 updateCameraModeUI();
-updateSpeedDisplay();
+updateScaleDisplays();
 
-// Ustaw animację jako uruchomioną i zaktualizuj przycisk
 lastAnimationTime = performance.now();
 document.getElementById('playButton').textContent = '⏸ Pauza';
 
 animate();
+resetAnimation();
