@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Układ Słoneczny - Naprawione Skakanie</title>
+    <title>3D Układ Słoneczny - Proste Cienie</title>
     <style>
         body {
             margin: 0;
@@ -242,6 +242,11 @@
             color: #64b5f6;
         }
 
+        .shadow-indicator {
+            background: rgba(255, 100, 100, 0.3) !important;
+            border-color: rgba(255, 100, 100, 0.6) !important;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .ui-overlay {
@@ -297,7 +302,8 @@
     <div class="debug-info" id="debugInfo">
         FPS: <span id="fpsDisplay">60</span><br>
         Ziemia: <span id="earthPosDisplay">(0, 0, 0)</span><br>
-        Kamera: <span id="cameraPosDisplay">(0, 0, 0)</span>
+        Kamera: <span id="cameraPosDisplay">(0, 0, 0)</span><br>
+        Cień: <span id="shadowStatus">ON</span>
     </div>
 
     <div class="ui-overlay">
@@ -351,6 +357,8 @@
                 <button id="resetScalesButton" class="reset-button">🔄 Reset do ustawień początkowych</button>
             </div>
             
+
+            
             <div class="section">
                 <h3>🎮 Animacja</h3>
                 
@@ -376,7 +384,7 @@
             </div>
             
             <div class="info-grid">
-                <div class="info-card">
+                <div class="info-card" id="currentYearCard">
                     <div class="info-label">Rok symulacji</div>
                     <div class="info-value" id="currentYear">2026</div>
                 </div>
@@ -392,11 +400,11 @@
                     <div class="info-label">Ziemia-Słońce</div>
                     <div class="info-value" id="earthDistance">147 mln km</div>
                 </div>
-                <div class="info-card">
+                <div class="info-card" id="moonDistanceCard">
                     <div class="info-label">Ziemia-Księżyc</div>
                     <div class="info-value" id="moonDistance">384 tys km</div>
                 </div>
-                <div class="info-card">
+                <div class="info-card" id="moonPhaseCard">
                     <div class="info-label">Faza Księżyca</div>
                     <div class="info-value" id="moonPhaseShort">Nów</div>
                 </div>
@@ -433,6 +441,8 @@
         let lastAnimationTime = 0;
         let animationSpeed = 1;
         let cameraMode = 'earth';
+
+        // Brak dodatkowych zmiennych - wszystko w sunLight
 
         // Kontrola kamery
         let isMouseDown = false;
@@ -607,8 +617,11 @@
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            
+            // WŁĄCZ shadowMap dla cieni
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             renderer.toneMappingExposure = 1.2;
             
@@ -642,17 +655,16 @@
             const sunGlow = new THREE.Mesh(sunGlowGeometry, sunGlowMaterial);
             scene.add(sunGlow);
             
-            sunLight = new THREE.PointLight(0xffffff, 2.5, 10000, 2);
-            sunLight.position.set(0, 0, 0);
-            sunLight.castShadow = true;
-            sunLight.shadow.camera.near = 50;
-            sunLight.shadow.camera.far = 1500;
-            sunLight.shadow.mapSize.width = 512;
-            sunLight.shadow.mapSize.height = 512;
-            sunLight.shadow.bias = -0.0001;
-            sunLight.shadow.normalBias = 0.2;
-            scene.add(sunLight);
+            // TYLKO PODSTAWOWE ŚWIATŁO OTOCZENIA
+            const ambientSunLight = new THREE.PointLight(0xffffff, 1.0, 10000, 2);
+            ambientSunLight.position.set(0, 0, 0);
+            ambientSunLight.castShadow = false;
+            scene.add(ambientSunLight);
+            
+            console.log('✅ Słońce z podstawowym oświetleniem');
         }
+
+
 
         function createPlanets() {
             Object.keys(planetData).forEach(planetKey => {
@@ -665,7 +677,6 @@
                 if (planetKey === 'earth') {
                     earthOrbitGroup = orbitGroup;
                     earthTiltGroup = new THREE.Group();
-                    // Usunięto statyczne nachylenie - będzie dynamicznie obliczane
                     earthOrbitGroup.add(earthTiltGroup);
                     
                     const earthGeometry = new THREE.SphereGeometry(1, 64, 64);
@@ -675,8 +686,8 @@
                     });
                     
                     earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                    earth.castShadow = true;
-                    earth.receiveShadow = true;
+                    earth.castShadow = false; // Ziemia nie rzuca cienia
+                    earth.receiveShadow = true; // ALE ODBIERA CIENIE!
                     earthTiltGroup.add(earth);
                     
                     if (planetInfo.textureUrls) {
@@ -694,11 +705,32 @@
                     });
                     
                     moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                    moon.castShadow = true;
-                    moon.receiveShadow = true;
+                    moon.castShadow = true; // KSIĘŻYC RZUCA CIEŃ!
+                    moon.receiveShadow = false;
                     moonOrbitGroup.add(moon);
                     
                     planets[planetKey] = earth;
+                    
+                    // LAMPA CIENI PRZYCZEPIONA DO ZIEMI
+                    sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+                    sunLight.castShadow = true;
+                    sunLight.target = earth;
+                    
+                    // Ustawienia cieni
+                    sunLight.shadow.mapSize.width = 2048;
+                    sunLight.shadow.mapSize.height = 2048;
+                    sunLight.shadow.camera.near = 1;
+                    sunLight.shadow.camera.far = 100;
+                    sunLight.shadow.camera.left = -20;
+                    sunLight.shadow.camera.right = 20;
+                    sunLight.shadow.camera.top = 20;
+                    sunLight.shadow.camera.bottom = -20;
+                    
+                    // DODAJ DO ZIEMI - porusza się razem z nią
+                    earthTiltGroup.add(sunLight);
+                    
+                    console.log('🌑 Lampa cieni przyczepiona do Ziemi');
+                    
                 } else {
                     const geometry = new THREE.SphereGeometry(1, 32, 32);
                     const material = new THREE.MeshLambertMaterial({ 
@@ -707,8 +739,8 @@
                     });
                     
                     const planet = new THREE.Mesh(geometry, material);
-                    planet.castShadow = true;
-                    planet.receiveShadow = true;
+                    planet.castShadow = false;
+                    planet.receiveShadow = false;
                     orbitGroup.add(planet);
                     
                     planets[planetKey] = planet;
@@ -1062,6 +1094,20 @@
                     
                     moon.position.set(moonX, moonY, moonZ);
                     moon.rotation.y = moonOrbitAngle;
+                    
+                    // AKTUALIZUJ POZYCJĘ LAMPY CIENI - na linii Ziemia-Słońce PO STRONIE SŁOŃCA
+                    if (sunLight) {
+                        const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
+                        const lampDistance = moonOrbitRadius * 2;
+                        
+                        // Kierunek od Ziemi DO słońca (nie odwrotnie!)
+                        const earthToSun = new THREE.Vector3(0, 0, 0).sub(earthOrbitGroup.position).normalize();
+                        
+                        // Pozycja lampy: od Ziemi W STRONĘ słońca na odległość 2 orbit księżyca
+                        sunLight.position.copy(earthToSun.multiplyScalar(lampDistance));
+                        
+                        console.log('🌑 Lampa po stronie SŁOŃCA:', sunLight.position);
+                    }
                 } else {
                     const orbitAngle = (totalDays / planetInfo.orbitPeriod) * 2 * Math.PI + planetInfo.startAngle;
                     const distance = orbitRadius * (1 - 0.01 * Math.cos(orbitAngle));
@@ -1077,6 +1123,8 @@
                     }
                 }
             });
+
+            // Cienie działają automatycznie - lampa podąża za Ziemią
         }
 
         function getMoonPhase(totalDays) {
@@ -1151,6 +1199,34 @@
             document.getElementById('scaleInfo').textContent = `${planetDistanceScale.toFixed(2)}x (Ziemia: ${distanceFromSurface.toFixed(0)} j. od powierzchni)`;
         }
 
+        function checkEclipses(totalDays) {
+            const phase = getMoonPhase(totalDays);
+            
+            // Sprawdź zaćmienie Słońca (Księżyc blisko nów i w linii)
+            if (phase.name === 'Nów') {
+                // Podświetl UI elements
+                document.getElementById('currentYearCard').classList.add('shadow-indicator');
+                document.getElementById('moonPhaseCard').classList.add('shadow-indicator');
+                document.getElementById('moonDistanceCard').classList.add('shadow-indicator');
+            } 
+            // Sprawdź zaćmienie Księżyca (Księżyc w pełni i w cieniu Ziemi)
+            else if (phase.name === 'Pełnia') {
+                // Sprawdź czy Księżyc jest blisko płaszczyzny orbitalnej Ziemi
+                const moonOrbitAngle = (totalDays / moonData.earth.moon.orbitPeriod) * 2 * Math.PI + (moonData.earth.moon.startPhaseAngle || 0);
+                const moonY = Math.sin(moonOrbitAngle) * Math.sin(moonOrbitalTilt);
+                
+                if (Math.abs(moonY) < 0.3) { // Blisko płaszczyzny orbitalnej
+                    document.getElementById('moonPhaseCard').classList.add('shadow-indicator');
+                    document.getElementById('moonDistanceCard').classList.add('shadow-indicator');
+                }
+            } else {
+                // Usuń podświetlenia
+                document.getElementById('currentYearCard').classList.remove('shadow-indicator');
+                document.getElementById('moonPhaseCard').classList.remove('shadow-indicator');
+                document.getElementById('moonDistanceCard').classList.remove('shadow-indicator');
+            }
+        }
+
         function setupEventListeners() {
             const canvas = document.getElementById('canvas3d');
             
@@ -1197,6 +1273,7 @@
                 updateScaleDisplays();
                 updatePlanetSizes();
             });
+            
             
             document.getElementById('resetScalesButton').addEventListener('click', resetScales);
             
@@ -1511,8 +1588,8 @@
             document.getElementById('earthDistance').textContent = earthDistanceKm + ' mln km';
             document.getElementById('moonDistance').textContent = moonDistanceKm + ' tys km';
             
-            const moonSize = moonData.earth.moon.realRadiusEarths * earthRadius * planetSizeScale;
-            document.getElementById('moonVisibility').textContent = `${moonSize.toFixed(3)}x Ziemi`;
+            // Sprawdź zaćmienia
+            checkEclipses(totalDays);
             
             updateToggleInfo();
         }
