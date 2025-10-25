@@ -25,8 +25,8 @@ let initialPinchDistance = 0;
 let initialCameraDistance = 0;
 
 // Skale konfiguracyjne - ustawienia początkowe
-let planetDistanceScale = 0.1;
-let moonDistanceScale = 0.5;
+let planetDistanceScale = 1;
+let moonDistanceScale = 1;
 let planetSizeScale = 1.0;
 
 // Dodane zmienne dla naprawienia skakania
@@ -47,9 +47,9 @@ const DISPLAY_AU_SCALE = 200;
 
 // Wartości domyślne dla reset-u
 const DEFAULT_SETTINGS = {
-    planetDistanceScale: 0.1,
-    moonDistanceScale: 0.1,
-    planetSizeScale: 4.0
+    planetDistanceScale: 1,
+    moonDistanceScale: 1,
+    planetSizeScale: 1.0
 };
 
 // RZECZYWISTE POZYCJE PLANET NA 1 STYCZNIA 2026 (bazując na ephemeris)
@@ -692,7 +692,7 @@ function updatePositions(totalDays) {
             // AKTUALIZUJ POZYCJĘ LAMPY CIENI - na linii Ziemia-Słońce PO STRONIE SŁOŃCA, RÓWNY POZIOM
             if (sunLight) {
                 const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
-                const lampDistance = moonOrbitRadius * 2;
+                const lampDistance = moonOrbitRadius * 1.5;
                 
                 // Kierunek od Ziemi DO słońca w płaszczyźnie XZ (Y=0)
                 const earthToSun = new THREE.Vector3(0, 0, 0).sub(earthOrbitGroup.position).normalize();
@@ -1113,7 +1113,7 @@ function toggleAnimation() {
 }
 
 function resetAnimation() {
-    const startingDay = 309.7;
+    const startingDay = 309.6;
 
     animationRunning = false;
     document.getElementById('playButton').textContent = '▶ Play';
