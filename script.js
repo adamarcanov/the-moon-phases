@@ -352,8 +352,12 @@ function createOrbitLines() {
         const orbitRadius = calculatePlanetOrbitRadius(planetInfo);
         
         const orbitPoints = [];
-        for (let i = 0; i <= 128; i++) {
-            const angle = (i / 128) * Math.PI * 2;
+        // Dynamiczna liczba segmentów - im większa orbita, tym więcej segmentów
+        const baseSegments = 256;
+        const segments = Math.max(baseSegments, Math.floor(baseSegments * planetDistanceScale * 3));
+        
+        for (let i = 0; i <= segments; i++) {
+            const angle = (i / segments) * Math.PI * 2;
             const distance = orbitRadius * (1 - planetInfo.eccentricity * Math.cos(angle));
             orbitPoints.push(new THREE.Vector3(
                 Math.cos(angle) * distance,
@@ -376,8 +380,12 @@ function createOrbitLines() {
     
     const moonOrbitRadius = calculateMoonOrbitRadius(moonData.earth.moon, earthRadius);
     const moonOrbitPoints = [];
-    for (let i = 0; i <= 64; i++) {
-        const angle = (i / 64) * Math.PI * 2;
+    // Dynamiczna liczba segmentów dla księżyca
+    const moonBaseSegments = 128;
+    const moonSegments = Math.max(moonBaseSegments, Math.floor(moonBaseSegments * moonDistanceScale * 4));
+    
+    for (let i = 0; i <= moonSegments; i++) {
+        const angle = (i / moonSegments) * Math.PI * 2;
         const distance = moonOrbitRadius * (1 - moonEccentricity * Math.cos(angle));
         
         const x = Math.cos(angle) * distance;
@@ -711,11 +719,13 @@ function updatePositions(totalDays) {
             const x = Math.cos(orbitAngle) * distance;
             const z = Math.sin(orbitAngle) * distance;
             
-            if (planets[planetKey]) {
-                planets[planetKey].position.set(x, 0, z);
+            if (planetOrbitGroups[planetKey]) {
+                planetOrbitGroups[planetKey].position.set(x, 0, z);
                 
                 const dayProgress = totalDays % 1;
-                planets[planetKey].rotation.y = dayProgress * 2 * Math.PI;
+                if (planets[planetKey]) {
+                    planets[planetKey].rotation.y = dayProgress * 2 * Math.PI;
+                }
             }
         }
     });
@@ -860,6 +870,7 @@ function setupEventListeners() {
     document.getElementById('moonScaleSlider').addEventListener('input', function(e) {
         moonDistanceScale = parseFloat(e.target.value);
         updateScaleDisplays();
+        createOrbitLines(); // Odświeża orbitę księżyca na żywo
         const currentTime = parseFloat(document.getElementById('timeSlider').value);
         updatePositions(currentTime);
     });
@@ -1234,7 +1245,6 @@ function onWindowResize() {
     }
 }
 
-// NAPRAWIONA funkcja animate - bez przeskoków
 function animate() {
     requestAnimationFrame(animate);
     
@@ -1250,31 +1260,28 @@ function animate() {
         sun.material.emissive.setRGB(1.0 * intensity, 0.5 * intensity, 0.0);
     }
     
-    // CIĄGŁA animacja czasowa bez przeskoków
+    // PROSTA ANIMACJA KROKAMI - bez deltaTime!
     if (animationRunning) {
-        const deltaTime = currentTime - lastAnimationTime;
-        const dayDurationMs = 3000 / animationSpeed; // czas trwania jednego dnia w ms
+        // Stały krok na klatkę - bez floating point problemów
+        const dayDurationFrames = 180 / animationSpeed; // 180 klatek = 3 sekundy przy 60 FPS
+        const dayStep = 1 / dayDurationFrames; // Stały przyrost na klatkę
         
-        // Ciągłe dodawanie czasu bez skoków
-        const dayIncrement = deltaTime / dayDurationMs;
-        currentSimulationTime += dayIncrement;
+        currentSimulationTime += dayStep;
         
         // Resetuj do 0 po przekroczeniu maksymalnego czasu (4 lata = 1461 dni)
         if (currentSimulationTime > 1461) {
             currentSimulationTime = 0;
         }
         
+        // Aktualizuj pozycje co klatkę - bez żadnych ograniczeń FPS
+        updatePositions(currentSimulationTime);
+        
         // Aktualizuj slider co każde 100ms dla wydajności
-        const now = performance.now();
-        if (!window.lastSliderUpdate || now - window.lastSliderUpdate > 100) {
+        if (!window.lastSliderUpdate || currentTime - window.lastSliderUpdate > 100) {
             document.getElementById('timeSlider').value = currentSimulationTime;
             updateUIOnly(currentSimulationTime);
-            window.lastSliderUpdate = now;
+            window.lastSliderUpdate = currentTime;
         }
-        
-        // ZAWSZE płynna aktualizacja pozycji
-        updatePositions(currentSimulationTime);
-        lastAnimationTime = currentTime;
     }
     
     renderer.render(scene, camera);

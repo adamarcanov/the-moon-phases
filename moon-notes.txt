@@ -1,0 +1,15 @@
+// ziemia nie jest pochylona jak w rzeczywistości przez co nie ma pór roku
+// w ui mówi że ma pełnie wtedy gdy księżyc jest po stronie słońca czyli jest oświetlony bok którego nie widzimy
+// teorytycznie teraz rzeczy się zgadzają jednak na symulacji podczas pełni księżyc wchodzi za ziemię w taki sposób, że dostaje maksymalny cień - pewnie wynika to z proporcji na symulacji dlatego przychodzę teraz do ciebie z kolejnym punktem - czy dodasz reszte planet naszego układu słonecznego (bez ich księżyców, tylko ziemski nas interesuje) z teksturami, focusy zostają takie jakie są czyli na ziemię z księżycem albo na cały układ, fajnie jakby odleglosci od planet, ich wielkosci, wielkosc slonca, oraz wielkość i odleglość naszego księżyca były w miarę rzeczywiste
+- no to jeszcze odleglości między planetarne zostały do zrobienia właściwie bo teraz proporcje są okej i wszystko wchodzi na siebie
+- teraz jeśli chodzi o animację księżyca i informacje w UI to przestały się zgadzać
+- dodaj tekstury tez reszcie planet w ukladzie, tym co nie mają
+- dalej orbita księżyca jest ustawiona inaczej niż jak docelowo księżyc się porusza, dodatkowo chciałbym w miarę rzeczywiście symulować zaćmienia słońca dlatego jak kończy się rok to resetuje się pozycja księżyca a powinna kontynuować animację czyli jak jest reset to ma się zaczynać od miejsca gdzie skończyła a pasek procesu bym wydłużył np do 30 lat żeby trafić w zaćmienie
+
+- odleglosc ziemi od księżyca to około 400 tyś km a od venus gdy jest blisko ziemi to jest odległość około 40mln km a na symulacji księżyc prawie uderza w wenus, więc te odległości dalej troche kuleją
+- czy materiały można jakoś uprościć żeby cienie wyświetlały się poprawnie? teraz cienie to jakieś niezbyt widoczne rastry
+- gwiazdy są za blisko naszego układu, daj je poza niego
+- dalej orbita księżyca jest ustawiona inaczej niż jak docelowo księżyc się porusza
+
+- czy zaćmienia mogą być zaznaczone na timeline?
+- jak już skrypt policzy kiedy są zaćmienia to podaj te informacje w jakiejś formie żebym mógł to zapisać w kodzie na przyszłość zamiast liczyć 20tyś elementów co sesje
