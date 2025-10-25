@@ -671,8 +671,9 @@ function updatePositions(totalDays) {
             // NAPRAWIONE nachylenie osi - zsynchronizowane z pozycją orbitalną
             // W czerwcu (dzień ~172) biegun północny nachylony toward słońca (lato północne)
             // W grudniu (dzień ~355/0) biegun północny nachylony away od słońca (zima północna)
-            const axialTiltAngle = earthOrbitAngle + Math.PI; // +180° offset dla prawidłowej orientacji
-            earthTiltGroup.rotation.z = earthAxialTilt * Math.cos(axialTiltAngle);
+            const dayOfYear = totalDays % 365.25;
+            const seasonPhase = ((dayOfYear - 172) / 365.25) * 2 * Math.PI; // 172 = 21 czerwca
+            earthTiltGroup.rotation.z = earthAxialTilt * Math.cos(seasonPhase);
             
             const dayProgress = totalDays % 1;
             earth.rotation.y = dayProgress * 2 * Math.PI;
@@ -1157,22 +1158,18 @@ function updateDebugInfo() {
 }
 
 function getSeason(totalDays) {
-    // Oblicz pozycję orbitalną Ziemi
-    const earthOrbitAngle = (totalDays / planetData.earth.orbitPeriod) * 2 * Math.PI + planetData.earth.startAngle;
+    // Pory roku bazują na dniu roku - rzeczywiste przesilenia
+    const dayOfYear = totalDays % 365.25;
     
-    // Przelicz kąt orbitalny na pory roku (dla półkuli północnej)
-    // 0° = przesilenie zimowe (21 grudnia)
-    // 90° = równonoc wiosenna (21 marca)  
-    // 180° = przesilenie letnie (21 czerwca)
-    // 270° = równonoc jesienna (21 września)
-    
-    let seasonAngle = earthOrbitAngle % (2 * Math.PI); // Normalizuj do 0-2π
-    let seasonDegrees = (seasonAngle * 180 / Math.PI) % 360;
-    
-    if (seasonDegrees >= 315 || seasonDegrees < 45) return 'Zima';      // Grudzień-Luty
-    if (seasonDegrees >= 45 && seasonDegrees < 135) return 'Wiosna';    // Marzec-Maj  
-    if (seasonDegrees >= 135 && seasonDegrees < 225) return 'Lato';     // Czerwiec-Sierpień
-    return 'Jesień';                                                     // Wrzesień-Listopad
+    if (dayOfYear >= 355 || dayOfYear < 80) {
+        return 'Zima';      // 21 grudnia - 20 marca
+    } else if (dayOfYear >= 80 && dayOfYear < 172) {
+        return 'Wiosna';    // 21 marca - 20 czerwca  
+    } else if (dayOfYear >= 172 && dayOfYear < 265) {
+        return 'Lato';      // 21 czerwca - 22 września
+    } else {
+        return 'Jesień';    // 23 września - 20 grudnia
+    }
 }
 
 function updateUIOnly(totalDays) {
