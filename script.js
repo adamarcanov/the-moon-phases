@@ -1166,7 +1166,7 @@ function getSeason(totalDays) {
     // 180° = przesilenie letnie (21 czerwca)
     // 270° = równonoc jesienna (21 września)
     
-    let seasonAngle = (earthOrbitAngle + Math.PI) % (2 * Math.PI); // Normalizuj do 0-2π
+    let seasonAngle = earthOrbitAngle % (2 * Math.PI); // Normalizuj do 0-2π
     let seasonDegrees = (seasonAngle * 180 / Math.PI) % 360;
     
     if (seasonDegrees >= 315 || seasonDegrees < 45) return 'Zima';      // Grudzień-Luty
