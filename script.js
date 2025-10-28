@@ -662,7 +662,7 @@ function updatePositions(totalDays) {
             const earthDistance = orbitRadius * (1 - earthEccentricity * Math.cos(earthOrbitAngle));
             
             const earthX = Math.cos(earthOrbitAngle) * earthDistance;
-            const earthZ = Math.sin(earthOrbitAngle) * earthDistance;
+            const earthZ = -Math.sin(earthOrbitAngle) * earthDistance;
             
             // Ustaw docelową pozycję Ziemi
             targetEarthPosition.set(earthX, 0, earthZ);
